@@ -1,0 +1,13 @@
+[package]
+name = "rocketlab"
+version = "0.1.0"
+edition = "2021"
+description = "Rocket trajectory simulator and aerospace toolkit — orbital mechanics, propulsion, atmospheric models, pure Rust"
+license = "MIT"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+nalgebra = "0.33"
+chrono = "0.4"
