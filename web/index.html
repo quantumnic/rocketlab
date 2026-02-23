@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🚀 RocketLab — Interactive Aerospace Simulator</title>
+<style>
+/* ── Reset & Theme ── */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a12;--bg2:#111122;--bg3:#181830;--fg:#e0e0f0;--fg2:#8888aa;
+  --accent:#00ccff;--accent2:#ff4466;--accent3:#44ff88;--accent4:#ffaa22;
+  --glow:0 0 10px rgba(0,204,255,.3);
+}
+html,body{height:100%;font-family:'SF Mono','Fira Code','Consolas',monospace;background:var(--bg);color:var(--fg);overflow:hidden}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+
+/* ── Layout ── */
+.app{display:flex;height:100vh}
+.sidebar{width:220px;min-width:220px;background:var(--bg2);border-right:1px solid #222;display:flex;flex-direction:column;overflow-y:auto}
+.sidebar h1{font-size:1.1em;padding:16px;background:linear-gradient(135deg,#0a0a20,#111133);border-bottom:1px solid #222;letter-spacing:1px}
+.sidebar h1 span{color:var(--accent)}
+.nav-item{display:block;padding:12px 16px;cursor:pointer;border-left:3px solid transparent;transition:all .15s;font-size:.82em;color:var(--fg2)}
+.nav-item:hover{background:var(--bg3);color:var(--fg)}
+.nav-item.active{border-left-color:var(--accent);color:var(--accent);background:rgba(0,204,255,.06)}
+.nav-item .icon{margin-right:6px;font-size:1.1em}
+.engine-badge{display:inline-block;margin:12px 16px;padding:4px 10px;border-radius:12px;font-size:.7em;letter-spacing:.5px}
+.engine-badge.wasm{background:rgba(255,100,0,.15);color:#ff8844;border:1px solid #ff6600}
+.engine-badge.js{background:rgba(0,204,255,.1);color:var(--accent);border:1px solid var(--accent)}
+.sidebar-links{margin-top:auto;padding:12px 16px;border-top:1px solid #222;font-size:.7em;line-height:2}
+.sidebar-links a{display:block;color:var(--fg2)}
+
+.main{flex:1;overflow-y:auto;padding:0}
+.panel{display:none;padding:24px;max-width:1200px;margin:0 auto}
+.panel.active{display:block}
+.panel h2{font-size:1.3em;margin-bottom:16px;color:var(--accent);text-shadow:var(--glow)}
+
+/* ── Controls ── */
+.controls{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;padding:14px;background:var(--bg2);border-radius:8px;border:1px solid #222}
+.ctrl{display:flex;flex-direction:column;gap:2px;min-width:140px}
+.ctrl label{font-size:.7em;color:var(--fg2);text-transform:uppercase;letter-spacing:.5px}
+.ctrl input[type=range]{accent-color:var(--accent);width:100%}
+.ctrl .val{font-size:.75em;color:var(--accent);font-weight:bold}
+.ctrl select{background:var(--bg3);color:var(--fg);border:1px solid #333;padding:4px 8px;border-radius:4px;font-family:inherit;font-size:.8em}
+.btn{background:linear-gradient(135deg,#0066aa,#0044aa);color:#fff;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:.82em;letter-spacing:.5px;transition:all .15s;align-self:flex-end}
+.btn:hover{background:linear-gradient(135deg,#0088cc,#0066cc);box-shadow:0 0 12px rgba(0,100,255,.4)}
+.btn.danger{background:linear-gradient(135deg,#aa2244,#882244)}
+.btn.danger:hover{background:linear-gradient(135deg,#cc3366,#aa3355)}
+.toggle{display:flex;align-items:center;gap:6px;font-size:.75em;cursor:pointer;color:var(--fg2)}
+.toggle input{accent-color:var(--accent)}
+
+/* ── Canvas ── */
+.canvas-wrap{position:relative;background:var(--bg);border-radius:8px;border:1px solid #222;overflow:hidden;margin-bottom:16px}
+.canvas-wrap canvas{display:block;width:100%;height:auto}
+.canvas-overlay{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);padding:6px 10px;border-radius:6px;font-size:.7em;color:var(--fg2);pointer-events:none}
+
+/* ── Info panels ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px}
+.stat{background:var(--bg2);border:1px solid #222;border-radius:8px;padding:12px}
+.stat .label{font-size:.65em;color:var(--fg2);text-transform:uppercase;letter-spacing:.5px}
+.stat .value{font-size:1.3em;color:var(--accent);margin-top:2px}
+.stat .unit{font-size:.7em;color:var(--fg2)}
+
+/* ── Engine table ── */
+.engine-table{width:100%;border-collapse:collapse;font-size:.78em;margin-bottom:16px}
+.engine-table th{background:var(--bg3);padding:8px 10px;text-align:left;color:var(--accent);border-bottom:2px solid #333;cursor:pointer;user-select:none;white-space:nowrap}
+.engine-table th:hover{color:#fff}
+.engine-table td{padding:6px 10px;border-bottom:1px solid #1a1a2e;white-space:nowrap}
+.engine-table tr:hover td{background:rgba(0,204,255,.04)}
+.engine-table .num{text-align:right;font-variant-numeric:tabular-nums}
+.bar-chart{margin-top:16px}
+.bar-row{display:flex;align-items:center;margin-bottom:4px;font-size:.75em}
+.bar-label{width:140px;text-align:right;padding-right:8px;color:var(--fg2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{height:18px;border-radius:3px;transition:width .3s;min-width:2px}
+.bar-val{margin-left:6px;color:var(--fg2);font-size:.85em}
+
+/* ── Graphs ── */
+.graph-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.graph-row .canvas-wrap{flex:1;min-width:280px}
+
+/* ── Timeline ── */
+.timeline{padding:16px;background:var(--bg2);border-radius:8px;border:1px solid #222;margin-bottom:16px;max-height:420px;overflow-y:auto}
+.tl-event{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid #1a1a2e;font-size:.8em}
+.tl-time{color:var(--accent);min-width:70px;font-weight:bold}
+.tl-icon{font-size:1.1em}
+.tl-desc{color:var(--fg)}
+
+/* ── Mobile ── */
+@media(max-width:768px){
+  .sidebar{width:56px;min-width:56px}
+  .sidebar h1 span,.sidebar-links,.nav-item span,.engine-badge span{display:none}
+  .nav-item{padding:12px 0;text-align:center}
+  .nav-item .icon{margin:0;font-size:1.3em}
+  .panel{padding:12px}
+  .controls{gap:8px}
+  .ctrl{min-width:100px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<!-- ════ SIDEBAR ════ -->
+<nav class="sidebar">
+  <h1>🚀 <span>RocketLab</span></h1>
+  <div class="nav-item active" data-panel="trajectory"><span class="icon">🛫</span><span> Trajectory</span></div>
+  <div class="nav-item" data-panel="orbits"><span class="icon">🌍</span><span> Orbits</span></div>
+  <div class="nav-item" data-panel="engines"><span class="icon">🔥</span><span> Engines</span></div>
+  <div class="nav-item" data-panel="reentry"><span class="icon">🛡️</span><span> Re-entry</span></div>
+  <div class="nav-item" data-panel="landing"><span class="icon">🦅</span><span> Landing</span></div>
+  <div class="nav-item" data-panel="missions"><span class="icon">🌙</span><span> Missions</span></div>
+  <div id="engineBadge" class="engine-badge js">⚡ <span>JS Engine</span></div>
+  <div class="sidebar-links">
+    <a href="https://www.nasa.gov" target="_blank">NASA</a>
+    <a href="https://www.esa.int" target="_blank">ESA</a>
+    <a href="https://www.spacex.com" target="_blank">SpaceX</a>
+    <a href="https://github.com/quantumnic/rocketlab" target="_blank">GitHub</a>
+  </div>
+</nav>
+
+<!-- ════ MAIN CONTENT ════ -->
+<div class="main">
+
+<!-- ══ 1. TRAJECTORY SIMULATOR ══ -->
+<div id="trajectory" class="panel active">
+  <h2>🛫 Rocket Trajectory Simulator</h2>
+  <div class="controls">
+    <div class="ctrl"><label>Thrust (kN)</label><input type="range" id="thr" min="100" max="10000" value="845" step="10"><span class="val" id="thrV">845</span></div>
+    <div class="ctrl"><label>Total Mass (kg)</label><input type="range" id="mass" min="1000" max="600000" value="550000" step="1000"><span class="val" id="massV">550000</span></div>
+    <div class="ctrl"><label>Dry Mass (kg)</label><input type="range" id="dmass" min="500" max="50000" value="22200" step="100"><span class="val" id="dmassV">22200</span></div>
+    <div class="ctrl"><label>Drag Coeff</label><input type="range" id="cd" min="0.1" max="1.0" value="0.3" step="0.01"><span class="val" id="cdV">0.30</span></div>
+    <div class="ctrl"><label>Kick Angle (°)</label><input type="range" id="angle" min="0" max="15" value="1" step="0.1"><span class="val" id="angleV">1.0</span></div>
+    <button class="btn" onclick="runTrajectory()">▶ Launch</button>
+  </div>
+  <div class="stats" id="trajStats"></div>
+  <div class="canvas-wrap"><canvas id="trajCanvas" width="1100" height="420"></canvas><div class="canvas-overlay" id="trajOv">Click Launch</div></div>
+  <div class="graph-row">
+    <div class="canvas-wrap"><canvas id="altGraph" width="540" height="200"></canvas></div>
+    <div class="canvas-wrap"><canvas id="velGraph" width="540" height="200"></canvas></div>
+  </div>
+</div>
+
+<!-- ══ 2. ORBIT VISUALIZER ══ -->
+<div id="orbits" class="panel">
+  <h2>🌍 Orbit Visualizer & Hohmann Transfers</h2>
+  <div class="controls">
+    <div class="ctrl"><label>Orbit 1 Alt (km)</label><input type="range" id="orb1" min="200" max="2000" value="400" step="10"><span class="val" id="orb1V">400</span></div>
+    <div class="ctrl"><label>Orbit 2 Alt (km)</label><input type="range" id="orb2" min="200" max="42000" value="35786" step="100"><span class="val" id="orb2V">35786</span></div>
+    <div class="ctrl"><label>Eccentricity</label><input type="range" id="orbE" min="0" max="0.9" value="0" step="0.01"><span class="val" id="orbEV">0.00</span></div>
+    <label class="toggle"><input type="checkbox" id="j2Toggle"> J2 Perturbation</label>
+    <label class="toggle"><input type="checkbox" id="hohToggle" checked> Show Hohmann</label>
+    <button class="btn" onclick="runOrbit()">🔄 Update</button>
+  </div>
+  <div class="stats" id="orbStats"></div>
+  <div class="canvas-wrap"><canvas id="orbCanvas" width="1100" height="520"></canvas><div class="canvas-overlay" id="orbOv"></div></div>
+</div>
+
+<!-- ══ 3. ENGINE DATABASE ══ -->
+<div id="engines" class="panel">
+  <h2>🔥 Engine Database Browser</h2>
+  <div class="controls">
+    <div class="ctrl"><label>Filter by</label>
+      <select id="engFilter" onchange="renderEngines()">
+        <option value="all">All Engines</option>
+        <option value="SpaceX">SpaceX</option>
+        <option value="Aerojet Rocketdyne">Aerojet Rocketdyne</option>
+        <option value="NPO Energomash">NPO Energomash</option>
+        <option value="Blue Origin">Blue Origin</option>
+        <option value="ArianeGroup">ArianeGroup</option>
+        <option value="Rocketdyne">Rocketdyne (Historic)</option>
+      </select>
+    </div>
+    <div class="ctrl"><label>Compare by</label>
+      <select id="engMetric" onchange="renderEngines()">
+        <option value="thrust_vac">Thrust (vac)</option>
+        <option value="isp_vac">ISP (vac)</option>
+        <option value="thrust_to_weight">T/W Ratio</option>
+        <option value="chamber_pressure">Chamber Pressure</option>
+        <option value="mass">Mass</option>
+      </select>
+    </div>
+  </div>
+  <div id="engChart" class="bar-chart"></div>
+  <div style="overflow-x:auto"><table class="engine-table" id="engTable"></table></div>
+</div>
+
+<!-- ══ 4. RE-ENTRY PHYSICS ══ -->
+<div id="reentry" class="panel">
+  <h2>🛡️ Re-entry Heat Shield Simulation</h2>
+  <div class="controls">
+    <div class="ctrl"><label>Entry Velocity (km/s)</label><input type="range" id="reV" min="3" max="15" value="7.8" step="0.1"><span class="val" id="reVV">7.8</span></div>
+    <div class="ctrl"><label>Entry Angle (°)</label><input type="range" id="reA" min="-20" max="-0.5" value="-6" step="0.1"><span class="val" id="reAV">-6.0</span></div>
+    <div class="ctrl"><label>Mass (kg)</label><input type="range" id="reM" min="1000" max="15000" value="5800" step="100"><span class="val" id="reMV">5800</span></div>
+    <div class="ctrl"><label>Drag Coeff</label><input type="range" id="reCd" min="0.5" max="2.0" value="1.3" step="0.05"><span class="val" id="reCdV">1.30</span></div>
+    <div class="ctrl"><label>Nose Radius (m)</label><input type="range" id="reR" min="0.5" max="5" value="2.35" step="0.05"><span class="val" id="reRV">2.35</span></div>
+    <div class="ctrl"><label>Vehicle</label>
+      <select id="rePreset" onchange="applyReentryPreset()">
+        <option value="custom">Custom</option>
+        <option value="apollo" selected>Apollo CM</option>
+        <option value="dragon">Dragon V2</option>
+        <option value="orion">Orion MPCV</option>
+      </select>
+    </div>
+    <button class="btn" onclick="runReentry()">▶ Simulate</button>
+  </div>
+  <div class="stats" id="reStats"></div>
+  <div class="canvas-wrap"><canvas id="reCanvas" width="1100" height="320"></canvas></div>
+  <div class="graph-row">
+    <div class="canvas-wrap"><canvas id="reTempGraph" width="540" height="200"></canvas></div>
+    <div class="canvas-wrap"><canvas id="reGGraph" width="540" height="200"></canvas></div>
+  </div>
+</div>
+
+<!-- ══ 5. POWERED DESCENT ══ -->
+<div id="landing" class="panel">
+  <h2>🦅 Powered Descent — Falcon 9 Landing</h2>
+  <div class="controls">
+    <div class="ctrl"><label>Altitude (m)</label><input type="range" id="ldAlt" min="200" max="5000" value="1500" step="50"><span class="val" id="ldAltV">1500</span></div>
+    <div class="ctrl"><label>Descent Vel (m/s)</label><input type="range" id="ldVel" min="10" max="300" value="180" step="5"><span class="val" id="ldVelV">180</span></div>
+    <div class="ctrl"><label>Fuel Mass (kg)</label><input type="range" id="ldFuel" min="500" max="8000" value="3500" step="100"><span class="val" id="ldFuelV">3500</span></div>
+    <div class="ctrl"><label>Thrust (kN)</label><input type="range" id="ldThr" min="200" max="900" value="845" step="5"><span class="val" id="ldThrV">845</span></div>
+    <button class="btn" onclick="runLanding()">▶ Land</button>
+  </div>
+  <div class="stats" id="ldStats"></div>
+  <div class="canvas-wrap"><canvas id="ldCanvas" width="1100" height="460"></canvas><div class="canvas-overlay" id="ldOv"></div></div>
+</div>
+
+<!-- ══ 6. MISSION REPLAYS ══ -->
+<div id="missions" class="panel">
+  <h2>🌙 Mission Replays</h2>
+  <div class="controls">
+    <div class="ctrl"><label>Mission</label>
+      <select id="missionSel" onchange="loadMission()">
+        <option value="apollo11">Apollo 11 — Lunar Mission</option>
+        <option value="falcon9">Falcon 9 — RTLS Landing</option>
+      </select>
+    </div>
+    <button class="btn" onclick="playMission()">▶ Play</button>
+    <button class="btn danger" onclick="stopMission()">⏹ Stop</button>
+  </div>
+  <div class="canvas-wrap"><canvas id="msCanvas" width="1100" height="420"></canvas><div class="canvas-overlay" id="msOv">Select mission & Play</div></div>
+  <div class="timeline" id="msTimeline"></div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   RocketLab Web — Full JavaScript simulation engine with WASM bridge
+   ═══════════════════════════════════════════════════════════════════ */
+
+// ── WASM bridge ──
+let WASM = null;
+let ENGINE = 'js';
+
+async function initWasm() {
+  try {
+    const mod = await import('./pkg/rocketlab.js');
+    await mod.default();
+    WASM = mod;
+    ENGINE = 'wasm';
+    const b = document.getElementById('engineBadge');
+    b.className = 'engine-badge wasm';
+    b.innerHTML = '🦀 <span>Rust WASM Engine</span>';
+    console.log('🦀 WASM engine loaded');
+  } catch(e) {
+    console.log('⚡ Using JS engine (WASM not available)');
+  }
+}
+initWasm();
+
+// ── Constants (match Rust) ──
+const MU_EARTH = 398600.4418;       // km³/s²
+const R_EARTH  = 6378.137;          // km
+const G0       = 9.80665;           // m/s²
+const PI       = Math.PI;
+const J2       = 1.08263e-3;
+
+// ── Navigation ──
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById(item.dataset.panel).classList.add('active');
+  });
+});
+
+// ── Slider wiring ──
+function wire(id, fmt) {
+  const el = document.getElementById(id);
+  const vl = document.getElementById(id + 'V');
+  if (!el || !vl) return;
+  const upd = () => { vl.textContent = fmt ? fmt(el.value) : el.value; };
+  el.addEventListener('input', upd);
+  upd();
+}
+wire('thr'); wire('mass'); wire('dmass');
+wire('cd', v => parseFloat(v).toFixed(2));
+wire('angle', v => parseFloat(v).toFixed(1));
+wire('orb1'); wire('orb2');
+wire('orbE', v => parseFloat(v).toFixed(2));
+wire('reV', v => parseFloat(v).toFixed(1));
+wire('reA', v => parseFloat(v).toFixed(1));
+wire('reM'); wire('reCd', v => parseFloat(v).toFixed(2));
+wire('reR', v => parseFloat(v).toFixed(2));
+wire('ldAlt'); wire('ldVel'); wire('ldFuel'); wire('ldThr');
+
+// ── Canvas helpers ──
+function getCtx(id) {
+  const c = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1;
+  const rect = c.getBoundingClientRect();
+  c.width = rect.width * dpr;
+  c.height = rect.height * dpr;
+  const ctx = c.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.W = rect.width;
+  ctx.H = rect.height;
+  return ctx;
+}
+function clearCanvas(ctx, bg) {
+  ctx.fillStyle = bg || '#0a0a12';
+  ctx.fillRect(0, 0, ctx.W, ctx.H);
+}
+function drawGrid(ctx, xMin, xMax, yMin, yMax, xLabel, yLabel, ticks=5) {
+  const m = {l:55,r:15,t:25,b:35};
+  const w = ctx.W - m.l - m.r, h = ctx.H - m.t - m.b;
+  ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 1;
+  ctx.fillStyle = '#555'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+  for (let i = 0; i <= ticks; i++) {
+    const x = m.l + (i/ticks)*w, y = m.t + (i/ticks)*h;
+    ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, m.t+h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(m.l+w, y); ctx.stroke();
+    ctx.fillText(fmt(xMin + (xMax-xMin)*i/ticks), x, m.t+h+14);
+    ctx.textAlign = 'right';
+    ctx.fillText(fmt(yMax - (yMax-yMin)*i/ticks), m.l-4, y+4);
+    ctx.textAlign = 'center';
+  }
+  ctx.fillStyle = '#888'; ctx.font = '11px monospace';
+  ctx.fillText(xLabel, m.l+w/2, ctx.H-4);
+  ctx.save(); ctx.translate(12, m.t+h/2); ctx.rotate(-PI/2);
+  ctx.fillText(yLabel, 0, 0); ctx.restore();
+  return {m, w, h, tx: v => m.l + (v-xMin)/(xMax-xMin)*w, ty: v => m.t + (1-(v-yMin)/(yMax-yMin))*h};
+}
+function fmt(v) {
+  const a = Math.abs(v);
+  if (a >= 1e6) return (v/1e6).toFixed(1)+'M';
+  if (a >= 1e3) return (v/1e3).toFixed(1)+'k';
+  if (a >= 1) return v.toFixed(1);
+  return v.toFixed(3);
+}
+function plotLine(ctx, g, data, xFn, yFn, color, width=1.5) {
+  if (data.length < 2) return;
+  ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = width;
+  ctx.moveTo(g.tx(xFn(data[0])), g.ty(yFn(data[0])));
+  for (let i = 1; i < data.length; i++) ctx.lineTo(g.tx(xFn(data[i])), g.ty(yFn(data[i])));
+  ctx.stroke();
+}
+
+// ── Stats helper ──
+function showStats(id, arr) {
+  document.getElementById(id).innerHTML = arr.map(s =>
+    `<div class="stat"><div class="label">${s[0]}</div><div class="value">${s[1]} <span class="unit">${s[2]||''}</span></div></div>`
+  ).join('');
+}
+
+/* ═══════════════════════════════════════════
+   1. TRAJECTORY SIMULATOR (JS fallback)
+   ═══════════════════════════════════════════ */
+function usAtm(alt) {
+  if (alt < 0 || alt > 86000) return null;
+  const layers = [[0,288.15,-0.0065],[11000,216.65,0],[20000,216.65,0.001],[32000,228.65,0.0028],[47000,270.65,0],[51000,270.65,-0.0028],[71000,214.65,-0.002]];
+  const pBase = [101325,22632.064,5474.889,868.019,110.906,66.939,3.956];
+  const re = 6371000; const h = re*alt/(re+alt);
+  let li = 0;
+  for (let i = layers.length-1; i >= 0; i--) { if (h >= layers[i][0]) { li = i; break; } }
+  const [hb, tb, lr] = layers[li]; const pb = pBase[li]; const dh = h - hb;
+  const T = tb + lr * dh;
+  const P = Math.abs(lr) < 1e-10
+    ? pb * Math.exp(-G0 * 0.0289644 * dh / (8.31446 * tb))
+    : pb * Math.pow(T / tb, -G0 * 0.0289644 / (8.31446 * lr));
+  const rho = P * 0.0289644 / (8.31446 * T);
+  return { T, P, rho };
+}
+
+function jsTrajSim(thrustN, totalMass, dryMass, cd, angleRad, dt, maxTime) {
+  const propMass = totalMass - dryMass;
+  const ispSl = 282, ispVac = 311, area = 10;
+  const pts = [];
+  let t=0, x=0, y=0, vx=0, vy=0.01, m=totalMass;
+  let maxQ = 0, maxQT = 0, maxQAlt = 0, burnout = null;
+
+  while (t < maxTime && y > -10) {
+    const alt = Math.max(y, 0);
+    const atm = usAtm(alt);
+    const pr = atm ? atm.P / 101325 : 0;
+    const isp = ispVac + (ispSl - ispVac) * pr;
+    const thr = thrustN + (thrustN * 0.1 - thrustN * 0.1) * (1 - pr); // simplified
+    const hasFuel = m > dryMass;
+    if (!hasFuel && burnout === null) burnout = t;
+
+    const spd = Math.sqrt(vx*vx + vy*vy);
+    const q = atm ? 0.5 * atm.rho * spd * spd : 0;
+    if (q > maxQ) { maxQ = q; maxQT = t; maxQAlt = alt; }
+
+    // Thrust direction
+    let tx = 0, ty = 1;
+    if (y > 500 && spd > 1) {
+      const fpa = Math.atan2(vy, vx) - angleRad;
+      tx = Math.cos(fpa); ty = Math.sin(fpa);
+    }
+
+    const r = (R_EARTH * 1000) + alt;
+    const g = MU_EARTH * 1e9 / (r * r);
+
+    let ax = 0, ay = -g, dm = 0;
+    if (hasFuel) {
+      const a = thrustN / m;
+      ax += a * tx; ay += a * ty;
+      dm = -thrustN / (isp * G0);
+    }
+    if (spd > 0.1 && atm) {
+      const fd = 0.5 * atm.rho * spd * spd * cd * area;
+      const ad = fd / m;
+      ax -= ad * vx / spd; ay -= ad * vy / spd;
+    }
+
+    if (t % 1 < dt || pts.length < 2000)
+      pts.push({ t, x, y, vx, vy, alt: y, vel: spd, mass: m, q });
+
+    vx += ax * dt; vy += ay * dt;
+    x += vx * dt; y += vy * dt;
+    m = Math.max(m + dm * dt, dryMass);
+    t += dt;
+    if (y < -10 && t > 1) break;
+  }
+  return { pts, maxQ, maxQT, maxQAlt, burnout };
+}
+
+function runTrajectory() {
+  const thrust = +document.getElementById('thr').value * 1000;
+  const totalMass = +document.getElementById('mass').value;
+  const dryMass = +document.getElementById('dmass').value;
+  const cd = +document.getElementById('cd').value;
+  const angle = (+document.getElementById('angle').value) * PI / 180;
+  const dt = 0.5, maxTime = 600;
+
+  let data;
+  if (ENGINE === 'wasm') {
+    const raw = WASM.simulate_trajectory(thrust, totalMass, dryMass, cd, angle * 180 / PI, dt, Math.round(maxTime / dt));
+    if (raw && raw.length) {
+      data = { pts: raw, maxQ: 0, maxQT: 0, maxQAlt: 0, burnout: null };
+      raw.forEach(p => { if (p.q > data.maxQ) { data.maxQ = p.q; data.maxQT = p.t; data.maxQAlt = p.alt; } });
+    }
+  }
+  if (!data) data = jsTrajSim(thrust, totalMass, dryMass, cd, angle, dt, maxTime);
+  const pts = data.pts;
+  if (!pts.length) return;
+
+  const last = pts[pts.length - 1];
+  showStats('trajStats', [
+    ['Max Altitude', fmt(Math.max(...pts.map(p=>p.alt))/1000), 'km'],
+    ['Max Velocity', fmt(Math.max(...pts.map(p=>p.vel))), 'm/s'],
+    ['Max-Q', fmt(data.maxQ/1000), 'kPa @ '+data.maxQT.toFixed(0)+'s'],
+    ['Burnout', data.burnout ? data.burnout.toFixed(1)+'s' : 'N/A', ''],
+    ['Downrange', fmt(last.x/1000), 'km'],
+    ['Flight Time', last.t.toFixed(1), 's'],
+  ]);
+
+  // Trajectory canvas
+  const ctx = getCtx('trajCanvas');
+  clearCanvas(ctx);
+  const xMax = Math.max(...pts.map(p=>p.x/1000), 1);
+  const yMax = Math.max(...pts.map(p=>p.alt/1000), 1);
+  const g = drawGrid(ctx, 0, xMax, 0, yMax, 'Downrange (km)', 'Altitude (km)');
+
+  // Trajectory line with gradient
+  ctx.beginPath(); ctx.lineWidth = 2;
+  for (let i = 0; i < pts.length; i++) {
+    const px = g.tx(pts[i].x/1000), py = g.ty(pts[i].alt/1000);
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  const grad = ctx.createLinearGradient(g.m.l, 0, g.m.l + g.w, 0);
+  grad.addColorStop(0, '#00ccff'); grad.addColorStop(0.4, '#44ff88'); grad.addColorStop(1, '#ffaa22');
+  ctx.strokeStyle = grad; ctx.stroke();
+
+  // Mark Max-Q
+  if (data.maxQ > 0) {
+    const mqPt = pts.find(p => Math.abs(p.t - data.maxQT) < 1);
+    if (mqPt) {
+      const mx = g.tx(mqPt.x/1000), my = g.ty(mqPt.alt/1000);
+      ctx.fillStyle = '#ff4466'; ctx.beginPath(); ctx.arc(mx, my, 5, 0, 2*PI); ctx.fill();
+      ctx.fillStyle = '#ff4466'; ctx.font = '10px monospace'; ctx.fillText('Max-Q', mx+8, my-4);
+    }
+  }
+
+  // Mark burnout
+  if (data.burnout) {
+    const boPt = pts.find(p => p.t >= data.burnout);
+    if (boPt) {
+      const bx = g.tx(boPt.x/1000), by = g.ty(boPt.alt/1000);
+      ctx.fillStyle = '#ffaa22'; ctx.beginPath(); ctx.arc(bx, by, 5, 0, 2*PI); ctx.fill();
+      ctx.fillStyle = '#ffaa22'; ctx.font = '10px monospace'; ctx.fillText('MECO', bx+8, by-4);
+    }
+  }
+
+  document.getElementById('trajOv').textContent = `${pts.length} points • ${ENGINE.toUpperCase()}`;
+
+  // Altitude graph
+  drawGraph('altGraph', pts, p=>p.t, p=>p.alt/1000, 'Time (s)', 'Altitude (km)', '#00ccff');
+  // Velocity graph
+  drawGraph('velGraph', pts, p=>p.t, p=>p.vel, 'Time (s)', 'Velocity (m/s)', '#44ff88');
+}
+
+function drawGraph(canvasId, data, xFn, yFn, xLbl, yLbl, color) {
+  const ctx = getCtx(canvasId);
+  clearCanvas(ctx);
+  const xs = data.map(xFn), ys = data.map(yFn);
+  const g = drawGrid(ctx, Math.min(...xs), Math.max(...xs,1), Math.min(0,...ys), Math.max(...ys,1), xLbl, yLbl);
+  plotLine(ctx, g, data, xFn, yFn, color, 2);
+}
+
+/* ═══════════════════════════════════
+   2. ORBIT VISUALIZER
+   ═══════════════════════════════════ */
+function runOrbit() {
+  const alt1 = +document.getElementById('orb1').value;
+  const alt2 = +document.getElementById('orb2').value;
+  const ecc = +document.getElementById('orbE').value;
+  const showHoh = document.getElementById('hohToggle').checked;
+  const showJ2 = document.getElementById('j2Toggle').checked;
+
+  const r1 = R_EARTH + alt1, r2 = R_EARTH + alt2;
+  const v1 = Math.sqrt(MU_EARTH / r1), v2 = Math.sqrt(MU_EARTH / r2);
+  const p1 = 2 * PI * Math.sqrt(r1*r1*r1 / MU_EARTH);
+  const p2 = 2 * PI * Math.sqrt(r2*r2*r2 / MU_EARTH);
+
+  let hohData = null;
+  if (showHoh) {
+    if (ENGINE === 'wasm') {
+      hohData = WASM.hohmann_transfer(r1, r2);
+    }
+    if (!hohData) {
+      const aT = (r1+r2)/2;
+      const vt1 = Math.sqrt(MU_EARTH*(2/r1 - 1/aT));
+      const vt2 = Math.sqrt(MU_EARTH*(2/r2 - 1/aT));
+      hohData = { dv1: Math.abs(vt1-v1), dv2: Math.abs(v2-vt2), total_dv: Math.abs(vt1-v1)+Math.abs(v2-vt2), transfer_time: PI*Math.sqrt(aT*aT*aT/MU_EARTH), a_transfer: aT };
+    }
+  }
+
+  // J2 precession rates
+  let raanDot = 0, omegaDot = 0;
+  if (showJ2) {
+    const inc = 51.6 * PI / 180; // ISS-like
+    const a1 = r1, p = a1 * (1 - ecc*ecc);
+    const n = Math.sqrt(MU_EARTH / (a1*a1*a1));
+    raanDot = -1.5 * n * J2 * (R_EARTH/p) * (R_EARTH/p) * Math.cos(inc) * 180 / PI * 86400;
+    omegaDot = 1.5 * n * J2 * (R_EARTH/p) * (R_EARTH/p) * (2 - 2.5*Math.sin(inc)*Math.sin(inc)) * 180 / PI * 86400;
+  }
+
+  const stats = [
+    ['Orbit 1 Radius', r1.toFixed(1), 'km'],
+    ['Orbit 1 Velocity', v1.toFixed(3), 'km/s'],
+    ['Orbit 1 Period', (p1/60).toFixed(1), 'min'],
+    ['Orbit 2 Radius', r2.toFixed(1), 'km'],
+    ['Orbit 2 Velocity', v2.toFixed(3), 'km/s'],
+    ['Orbit 2 Period', (p2/3600).toFixed(2), 'hr'],
+  ];
+  if (hohData) {
+    stats.push(['Hohmann Δv₁', hohData.dv1.toFixed(3), 'km/s']);
+    stats.push(['Hohmann Δv₂', hohData.dv2.toFixed(3), 'km/s']);
+    stats.push(['Total Δv', hohData.total_dv.toFixed(3), 'km/s']);
+    stats.push(['Transfer Time', (hohData.transfer_time/3600).toFixed(2), 'hr']);
+  }
+  if (showJ2) {
+    stats.push(['RAAN Drift', raanDot.toFixed(3), '°/day']);
+    stats.push(['ω Drift', omegaDot.toFixed(3), '°/day']);
+  }
+  showStats('orbStats', stats);
+
+  // Draw orbits
+  const ctx = getCtx('orbCanvas');
+  clearCanvas(ctx);
+  const cx = ctx.W / 2, cy = ctx.H / 2;
+  const maxR = Math.max(r2 * (1 + ecc), r1 * 1.1) * 1.15;
+  const scale = Math.min(ctx.W, ctx.H) * 0.43 / maxR;
+
+  // Earth
+  const er = R_EARTH * scale;
+  const earthGrad = ctx.createRadialGradient(cx, cy, er*0.2, cx, cy, er);
+  earthGrad.addColorStop(0, '#2244aa'); earthGrad.addColorStop(0.5, '#1166aa'); earthGrad.addColorStop(1, '#004488');
+  ctx.fillStyle = earthGrad; ctx.beginPath(); ctx.arc(cx, cy, er, 0, 2*PI); ctx.fill();
+  ctx.strokeStyle = '#3388cc'; ctx.lineWidth = 1; ctx.stroke();
+  // Atmosphere glow
+  ctx.strokeStyle = 'rgba(100,180,255,0.15)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(cx, cy, er + 3, 0, 2*PI); ctx.stroke();
+
+  // Orbit 1
+  drawOrbitEllipse(ctx, cx, cy, r1, ecc, scale, '#00ccff', 2);
+  // Orbit 2
+  drawOrbitEllipse(ctx, cx, cy, r2, ecc, scale, '#44ff88', 2);
+
+  // Hohmann transfer ellipse
+  if (hohData && showHoh) {
+    const aT = hohData.a_transfer;
+    const eT = Math.abs(r2 - r1) / (r1 + r2);
+    ctx.setLineDash([6, 4]);
+    drawOrbitEllipse(ctx, cx, cy, aT, eT, scale, '#ffaa22', 1.5, true);
+    ctx.setLineDash([]);
+    // Burn arrows
+    const burn1x = cx + r1 * scale, burn1y = cy;
+    ctx.fillStyle = '#ff4466'; ctx.beginPath(); ctx.arc(burn1x, burn1y, 4, 0, 2*PI); ctx.fill();
+    ctx.fillStyle = '#ff4466'; ctx.font = '10px monospace'; ctx.fillText('Δv₁', burn1x+8, burn1y-4);
+    const burn2x = cx - r2 * scale, burn2y = cy;
+    ctx.fillStyle = '#ff4466'; ctx.beginPath(); ctx.arc(burn2x, burn2y, 4, 0, 2*PI); ctx.fill();
+    ctx.fillText('Δv₂', burn2x+8, burn2y-4);
+  }
+
+  // Labels
+  ctx.fillStyle = '#00ccff'; ctx.font = '10px monospace';
+  ctx.fillText('LEO ' + alt1 + ' km', cx + r1*scale + 8, cy - 10);
+  ctx.fillStyle = '#44ff88';
+  ctx.fillText((alt2 > 30000 ? 'GEO' : 'Orbit 2') + ' ' + alt2 + ' km', cx, cy - r2*scale - 8);
+
+  document.getElementById('orbOv').textContent = showJ2 ? 'J2 perturbation active' : '';
+}
+
+function drawOrbitEllipse(ctx, cx, cy, a, e, scale, color, lw, halfOnly) {
+  ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = lw;
+  const b = a * Math.sqrt(1 - e*e);
+  const c = a * e;
+  const steps = halfOnly ? 100 : 200;
+  const maxAngle = halfOnly ? PI : 2*PI;
+  for (let i = 0; i <= steps; i++) {
+    const theta = maxAngle * i / steps;
+    const r = a * (1 - e*e) / (1 + e * Math.cos(theta));
+    const x = cx + r * Math.cos(theta) * scale;
+    const y = cy - r * Math.sin(theta) * scale;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+/* ═══════════════════════════════════
+   3. ENGINE DATABASE
+   ═══════════════════════════════════ */
+const ENGINE_DATA = [
+  {name:'Merlin 1D',manufacturer:'SpaceX',thrust_sl:845,thrust_vac:934,isp_sl:282,isp_vac:311,mass:470,propellant:'LOX/RP-1',cycle:'Gas Generator',chamber_pressure:97,thrust_to_weight:203,first_flight:2013,status:'Operational'},
+  {name:'Merlin 1D Vacuum',manufacturer:'SpaceX',thrust_sl:null,thrust_vac:981,isp_sl:null,isp_vac:348,mass:490,propellant:'LOX/RP-1',cycle:'Gas Generator',chamber_pressure:97,thrust_to_weight:204,first_flight:2013,status:'Operational'},
+  {name:'Raptor 2',manufacturer:'SpaceX',thrust_sl:2300,thrust_vac:2560,isp_sl:327,isp_vac:363,mass:1500,propellant:'LOX/CH₄',cycle:'Full-Flow SC',chamber_pressure:350,thrust_to_weight:174,first_flight:2022,status:'Operational'},
+  {name:'Raptor 3',manufacturer:'SpaceX',thrust_sl:2600,thrust_vac:2890,isp_sl:330,isp_vac:366,mass:1300,propellant:'LOX/CH₄',cycle:'Full-Flow SC',chamber_pressure:400,thrust_to_weight:226,first_flight:2024,status:'Development'},
+  {name:'SuperDraco',manufacturer:'SpaceX',thrust_sl:73,thrust_vac:73,isp_sl:240,isp_vac:235,mass:150,propellant:'NTO/MMH',cycle:'Pressure-Fed',chamber_pressure:57,thrust_to_weight:49.6,first_flight:2015,status:'Operational'},
+  {name:'RS-25 (SSME)',manufacturer:'Aerojet Rocketdyne',thrust_sl:1860,thrust_vac:2279,isp_sl:366,isp_vac:452,mass:3527,propellant:'LOX/LH₂',cycle:'Staged Combustion',chamber_pressure:207,thrust_to_weight:65.9,first_flight:1981,status:'Operational'},
+  {name:'RL10B-2',manufacturer:'Aerojet Rocketdyne',thrust_sl:null,thrust_vac:110,isp_sl:null,isp_vac:462,mass:277,propellant:'LOX/LH₂',cycle:'Expander',chamber_pressure:43,thrust_to_weight:40.5,first_flight:1998,status:'Operational'},
+  {name:'RS-68A',manufacturer:'Aerojet Rocketdyne',thrust_sl:3312,thrust_vac:3560,isp_sl:362,isp_vac:409,mass:6696,propellant:'LOX/LH₂',cycle:'Gas Generator',chamber_pressure:91,thrust_to_weight:54.2,first_flight:2002,status:'Retired'},
+  {name:'J-2',manufacturer:'Rocketdyne',thrust_sl:null,thrust_vac:1033,isp_sl:null,isp_vac:421,mass:1788,propellant:'LOX/LH₂',cycle:'Gas Generator',chamber_pressure:52,thrust_to_weight:58.9,first_flight:1966,status:'Retired'},
+  {name:'F-1',manufacturer:'Rocketdyne',thrust_sl:6770,thrust_vac:7741,isp_sl:263,isp_vac:304,mass:8391,propellant:'LOX/RP-1',cycle:'Gas Generator',chamber_pressure:70,thrust_to_weight:94.1,first_flight:1967,status:'Retired'},
+  {name:'RD-180',manufacturer:'NPO Energomash',thrust_sl:3830,thrust_vac:4152,isp_sl:311,isp_vac:338,mass:5307,propellant:'LOX/RP-1',cycle:'Staged Combustion',chamber_pressure:267,thrust_to_weight:79.8,first_flight:2000,status:'Operational'},
+  {name:'RD-170',manufacturer:'NPO Energomash',thrust_sl:7904,thrust_vac:8083,isp_sl:309,isp_vac:337,mass:9750,propellant:'LOX/RP-1',cycle:'Staged Combustion',chamber_pressure:245,thrust_to_weight:82.4,first_flight:1987,status:'Retired'},
+  {name:'NK-33',manufacturer:'Kuznetsov',thrust_sl:1512,thrust_vac:1667,isp_sl:297,isp_vac:331,mass:1222,propellant:'LOX/RP-1',cycle:'Staged Combustion',chamber_pressure:145,thrust_to_weight:126.3,first_flight:2013,status:'Retired'},
+  {name:'BE-4',manufacturer:'Blue Origin',thrust_sl:2400,thrust_vac:2670,isp_sl:310,isp_vac:343,mass:2700,propellant:'LOX/CH₄',cycle:'Staged Combustion',chamber_pressure:134,thrust_to_weight:90.6,first_flight:2024,status:'Operational'},
+  {name:'BE-3',manufacturer:'Blue Origin',thrust_sl:490,thrust_vac:550,isp_sl:365,isp_vac:410,mass:750,propellant:'LOX/LH₂',cycle:'Gas Generator',chamber_pressure:46,thrust_to_weight:74.7,first_flight:2015,status:'Operational'},
+  {name:'Vulcain 2',manufacturer:'ArianeGroup',thrust_sl:1340,thrust_vac:1390,isp_sl:318,isp_vac:434,mass:1800,propellant:'LOX/LH₂',cycle:'Gas Generator',chamber_pressure:116,thrust_to_weight:78.7,first_flight:2005,status:'Operational'},
+  {name:'Vinci',manufacturer:'ArianeGroup',thrust_sl:null,thrust_vac:180,isp_sl:null,isp_vac:464,mass:550,propellant:'LOX/LH₂',cycle:'Expander',chamber_pressure:61,thrust_to_weight:33.4,first_flight:2023,status:'Operational'},
+  {name:'Raptor 1',manufacturer:'SpaceX',thrust_sl:1800,thrust_vac:2000,isp_sl:327,isp_vac:363,mass:1600,propellant:'LOX/CH₄',cycle:'Full-Flow SC',chamber_pressure:300,thrust_to_weight:127,first_flight:2019,status:'Testing'},
+  {name:'H-1',manufacturer:'Rocketdyne',thrust_sl:947,thrust_vac:1030,isp_sl:289,isp_vac:315,mass:635,propellant:'LOX/RP-1',cycle:'Gas Generator',chamber_pressure:58,thrust_to_weight:152,first_flight:1961,status:'Retired'},
+  {name:'RD-191',manufacturer:'NPO Energomash',thrust_sl:2085,thrust_vac:2260,isp_sl:311,isp_vac:337,mass:2290,propellant:'LOX/RP-1',cycle:'Staged Combustion',chamber_pressure:267,thrust_to_weight:92.7,first_flight:2013,status:'Operational'},
+];
+
+let engineList = ENGINE_DATA;
+
+function renderEngines() {
+  // Try WASM first
+  if (ENGINE === 'wasm' && !engineList._fromWasm) {
+    try {
+      const raw = WASM.engine_database();
+      if (raw && raw.length) { engineList = raw; engineList._fromWasm = true; }
+    } catch(e) {}
+  }
+
+  const filter = document.getElementById('engFilter').value;
+  const metric = document.getElementById('engMetric').value;
+  let data = filter === 'all' ? [...engineList] : engineList.filter(e => e.manufacturer.includes(filter));
+  data.sort((a, b) => (b[metric] || 0) - (a[metric] || 0));
+
+  // Bar chart
+  const maxVal = Math.max(...data.map(e => e[metric] || 0), 1);
+  const colors = ['#00ccff','#44ff88','#ff4466','#ffaa22','#aa66ff','#ff66aa','#66ffcc','#ff8844'];
+  document.getElementById('engChart').innerHTML = data.slice(0, 15).map((e, i) => {
+    const v = e[metric] || 0;
+    const w = (v / maxVal * 100).toFixed(1);
+    const c = colors[i % colors.length];
+    return `<div class="bar-row"><div class="bar-label">${e.name}</div><div class="bar" style="width:${w}%;background:${c}"></div><div class="bar-val">${v.toFixed(1)}</div></div>`;
+  }).join('');
+
+  // Table
+  const table = document.getElementById('engTable');
+  table.innerHTML = `<thead><tr><th>Engine</th><th>Mfr</th><th>Thrust SL</th><th>Thrust Vac</th><th>ISP SL</th><th>ISP Vac</th><th>Mass</th><th>Propellant</th><th>Cycle</th><th>P_c</th><th>T/W</th><th>Year</th><th>Status</th></tr></thead><tbody>` +
+    data.map(e => `<tr><td><b>${e.name}</b></td><td>${e.manufacturer}</td><td class="num">${e.thrust_sl || '—'}</td><td class="num">${e.thrust_vac}</td><td class="num">${e.isp_sl || '—'}</td><td class="num">${e.isp_vac}</td><td class="num">${e.mass}</td><td>${e.propellant}</td><td>${e.cycle}</td><td class="num">${e.chamber_pressure}</td><td class="num">${e.thrust_to_weight}</td><td class="num">${e.first_flight}</td><td>${e.status}</td></tr>`).join('') + '</tbody>';
+}
+renderEngines();
+
+/* ═══════════════════════════════════
+   4. RE-ENTRY PHYSICS
+   ═══════════════════════════════════ */
+const rePresets = {
+  apollo:  { v:11.1, a:-6.5, m:5800, cd:1.3, r:2.35 },
+  dragon:  { v:7.8,  a:-1.2, m:6400, cd:1.2, r:2.0  },
+  orion:   { v:11.0, a:-5.8, m:8500, cd:1.2, r:2.5  },
+};
+function applyReentryPreset() {
+  const p = rePresets[document.getElementById('rePreset').value];
+  if (!p) return;
+  document.getElementById('reV').value = p.v; document.getElementById('reVV').textContent = p.v.toFixed(1);
+  document.getElementById('reA').value = p.a; document.getElementById('reAV').textContent = p.a.toFixed(1);
+  document.getElementById('reM').value = p.m; document.getElementById('reMV').textContent = p.m;
+  document.getElementById('reCd').value = p.cd; document.getElementById('reCdV').textContent = p.cd.toFixed(2);
+  document.getElementById('reR').value = p.r; document.getElementById('reRV').textContent = p.r.toFixed(2);
+}
+
+function jsReentrySim(vel, angleDeg, mass, cd, noseR, steps) {
+  const dt = 1;
+  let alt = 120000, v = vel, gamma = angleDeg * PI / 180, t = 0;
+  const area = PI * noseR * noseR;
+  const pts = [];
+  for (let i = 0; i < steps; i++) {
+    if (alt < 0 || v < 50) break;
+    const r = R_EARTH * 1000 + alt;
+    const grav = MU_EARTH * 1e9 / (r * r);
+    const atm = usAtm(Math.max(0, Math.min(alt, 85999)));
+    const rho = atm ? atm.rho : 0;
+    const drag = 0.5 * rho * v * v * cd * area;
+    const decelG = drag / mass / G0;
+    const hf = 1.7415e-4 * Math.sqrt(rho / noseR) * Math.pow(v, 3);
+    const sigma = 5.67e-8;
+    const temp = Math.pow(hf / (0.85 * sigma), 0.25);
+    pts.push({ t, alt, vel: v, decel_g: decelG, heat_flux: hf, temp });
+    const dvDrag = -drag / mass;
+    const dvGrav = -grav * Math.sin(gamma);
+    const dg = -(grav / v) * Math.cos(gamma) + (v / r) * Math.cos(gamma);
+    v += (dvDrag + dvGrav) * dt;
+    gamma += dg * dt;
+    alt += v * Math.sin(gamma) * dt;
+    t += dt;
+  }
+  return pts;
+}
+
+function runReentry() {
+  const vel = +document.getElementById('reV').value * 1000;
+  const ang = +document.getElementById('reA').value;
+  const mass = +document.getElementById('reM').value;
+  const cd = +document.getElementById('reCd').value;
+  const noseR = +document.getElementById('reR').value;
+  const steps = 800;
+
+  let pts;
+  if (ENGINE === 'wasm') {
+    const raw = WASM.reentry_sim(vel, ang, mass, cd, noseR, steps);
+    if (raw && raw.length) pts = raw;
+  }
+  if (!pts) pts = jsReentrySim(vel, ang, mass, cd, noseR, steps);
+  if (!pts.length) return;
+
+  const maxG = Math.max(...pts.map(p => p.decel_g));
+  const maxHF = Math.max(...pts.map(p => p.heat_flux));
+  const maxT = Math.max(...pts.map(p => p.temp));
+  showStats('reStats', [
+    ['Peak Deceleration', maxG.toFixed(1), 'g'],
+    ['Peak Heat Flux', (maxHF/1e6).toFixed(2), 'MW/m²'],
+    ['Peak Temperature', maxT.toFixed(0), 'K (' + (maxT-273).toFixed(0) + '°C)'],
+    ['Entry Duration', pts[pts.length-1].t.toFixed(0), 's'],
+    ['Final Velocity', pts[pts.length-1].vel.toFixed(0), 'm/s'],
+    ['Final Altitude', (pts[pts.length-1].alt/1000).toFixed(1), 'km'],
+  ]);
+
+  // Main altitude-velocity canvas
+  const ctx = getCtx('reCanvas');
+  clearCanvas(ctx);
+  const g = drawGrid(ctx, 0, Math.max(...pts.map(p=>p.t),1), 0, 125, 'Time (s)', 'Altitude (km)');
+  plotLine(ctx, g, pts, p=>p.t, p=>p.alt/1000, '#00ccff', 2);
+  // Velocity overlay scaled
+  const vMax = Math.max(...pts.map(p=>p.vel));
+  const vScale = 120 / vMax;
+  plotLine(ctx, g, pts, p=>p.t, p=>p.vel*vScale/1000, '#44ff88', 1.5);
+  ctx.fillStyle = '#00ccff'; ctx.font = '10px monospace'; ctx.fillText('— Altitude', g.m.l+10, 16);
+  ctx.fillStyle = '#44ff88'; ctx.fillText('— Velocity', g.m.l+110, 16);
+
+  // Temperature graph
+  drawGraph('reTempGraph', pts, p=>p.t, p=>p.temp, 'Time (s)', 'Temperature (K)', '#ff4466');
+  // G-load graph
+  drawGraph('reGGraph', pts, p=>p.t, p=>p.decel_g, 'Time (s)', 'Deceleration (g)', '#ffaa22');
+}
+
+/* ═══════════════════════════════════
+   5. POWERED DESCENT / LANDING
+   ═══════════════════════════════════ */
+function jsLandingSim(alt, vel, fuelMass, thrust, steps) {
+  const dryMass = 22200, isp = 282;
+  const ve = isp * G0;
+  const dt = 0.05;
+  let z = alt, vz = -vel, m = dryMass + fuelMass, t = 0;
+  const pts = [];
+  // Simple hoverslam: start burn when we must
+  // Compute burn altitude: v²/(2*(T/m - g))
+  for (let i = 0; i < steps; i++) {
+    if (z <= 0) { pts.push({t, x:0, z:0, vx:0, vz, mass:m, thrust:0}); break; }
+    const hasFuel = m > dryMass;
+    // Calculate stopping distance
+    const stopDist = (vz * vz) / (2 * (thrust / m - G0));
+    const shouldBurn = hasFuel && z < stopDist * 1.3 + 50;
+    const thr = shouldBurn ? thrust : 0;
+    const mdot = thr > 0 ? thr / ve : 0;
+
+    if (i % 4 === 0) pts.push({t, x:0, z, vx:0, vz, mass:m, thrust:thr});
+
+    const az = (thr > 0 ? thr / m : 0) - G0;
+    vz += az * dt;
+    z += vz * dt;
+    m = Math.max(m - mdot * dt, dryMass);
+    t += dt;
+  }
+  return pts;
+}
+
+function runLanding() {
+  const alt = +document.getElementById('ldAlt').value;
+  const vel = +document.getElementById('ldVel').value;
+  const fuel = +document.getElementById('ldFuel').value;
+  const thrust = +document.getElementById('ldThr').value * 1000;
+  const steps = 20000;
+
+  let pts;
+  if (ENGINE === 'wasm') {
+    const raw = WASM.falcon9_landing(alt, vel, fuel, thrust, steps);
+    if (raw && raw.length) pts = raw;
+  }
+  if (!pts) pts = jsLandingSim(alt, vel, fuel, thrust, steps);
+  if (!pts.length) return;
+
+  const last = pts[pts.length - 1];
+  const landed = last.z <= 0.1;
+  const touchVel = Math.abs(last.vz);
+  const success = landed && touchVel < 10;
+  const fuelUsed = (22200 + fuel) - last.mass;
+
+  showStats('ldStats', [
+    ['Result', success ? '✅ SUCCESS' : (landed ? '💥 CRASH' : '⏳ Running'), ''],
+    ['Touch-down Vel', touchVel.toFixed(1), 'm/s'],
+    ['Flight Time', last.t.toFixed(1), 's'],
+    ['Fuel Used', fuelUsed.toFixed(0), 'kg'],
+    ['Fuel Remaining', (fuel - fuelUsed).toFixed(0), 'kg'],
+    ['Final Mass', last.mass.toFixed(0), 'kg'],
+  ]);
+
+  // Draw landing visualization
+  const ctx = getCtx('ldCanvas');
+  clearCanvas(ctx);
+  const W = ctx.W, H = ctx.H;
+
+  // Ground
+  ctx.fillStyle = '#1a1a0a';
+  ctx.fillRect(0, H - 40, W, 40);
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+  for (let i = 0; i < W; i += 20) { ctx.beginPath(); ctx.moveTo(i, H-40); ctx.lineTo(i, H); ctx.stroke(); }
+
+  // Landing pad
+  const padX = W / 2, padW = 60;
+  ctx.fillStyle = '#333'; ctx.fillRect(padX - padW/2, H - 44, padW, 8);
+  ctx.fillStyle = '#ff4466'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('LZ-1', padX, H - 20);
+
+  // Trajectory
+  if (pts.length > 1) {
+    const maxAlt = Math.max(...pts.map(p => p.z), 1);
+    const scaleZ = (H - 80) / maxAlt;
+    ctx.beginPath(); ctx.strokeStyle = success ? '#44ff88' : '#ff4466'; ctx.lineWidth = 2;
+    for (let i = 0; i < pts.length; i++) {
+      const px = padX;
+      const py = H - 44 - pts[i].z * scaleZ;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // Draw rocket at various positions
+    const rocketPositions = [0, Math.floor(pts.length*0.25), Math.floor(pts.length*0.5), Math.floor(pts.length*0.75), pts.length-1];
+    rocketPositions.forEach((idx, i) => {
+      if (idx >= pts.length) return;
+      const p = pts[idx];
+      const py = H - 44 - p.z * scaleZ;
+      const alpha = 0.3 + 0.7 * (i / (rocketPositions.length - 1));
+
+      // Rocket body
+      ctx.fillStyle = `rgba(200,200,220,${alpha})`;
+      ctx.fillRect(padX - 4, py - 20, 8, 30);
+
+      // Exhaust
+      if (p.thrust > 0) {
+        const exLen = (p.thrust / (thrust * 1.5)) * 25;
+        const gradient = ctx.createLinearGradient(padX, py + 10, padX, py + 10 + exLen);
+        gradient.addColorStop(0, `rgba(255,150,50,${alpha})`);
+        gradient.addColorStop(1, `rgba(255,50,0,0)`);
+        ctx.fillStyle = gradient;
+        ctx.beginPath(); ctx.moveTo(padX - 5, py + 10);
+        ctx.lineTo(padX + 5, py + 10);
+        ctx.lineTo(padX + 2, py + 10 + exLen);
+        ctx.lineTo(padX - 2, py + 10 + exLen);
+        ctx.fill();
+      }
+
+      // Labels
+      ctx.fillStyle = `rgba(136,136,170,${alpha})`; ctx.font = '9px monospace'; ctx.textAlign = 'left';
+      ctx.fillText(`${p.z.toFixed(0)}m ${Math.abs(p.vz).toFixed(0)}m/s`, padX + 12, py);
+    });
+
+    // Altitude scale
+    ctx.fillStyle = '#555'; ctx.font = '10px monospace'; ctx.textAlign = 'right';
+    for (let a = 0; a <= maxAlt; a += Math.max(Math.round(maxAlt/5/100)*100, 100)) {
+      const y = H - 44 - a * scaleZ;
+      ctx.fillText(a + 'm', 45, y + 3);
+      ctx.strokeStyle = '#1a1a2e'; ctx.beginPath(); ctx.moveTo(50, y); ctx.lineTo(W - 10, y); ctx.stroke();
+    }
+  }
+
+  document.getElementById('ldOv').textContent = success ? '✅ Landed!' : (last.z <= 0 ? '💥 Impact too fast' : 'Simulating...');
+}
+
+/* ═══════════════════════════════════
+   6. MISSION REPLAYS
+   ═══════════════════════════════════ */
+let missionAnim = null;
+
+const MISSIONS = {
+  apollo11: {
+    name: 'Apollo 11',
+    events: [
+      { t: 0, icon: '🚀', desc: 'Liftoff — Saturn V launches from LC-39A' },
+      { t: 12, icon: '🌪️', desc: 'Max-Q — Maximum dynamic pressure' },
+      { t: 162, icon: '🔥', desc: 'S-IC Burnout / Separation — First stage cutoff at 67 km' },
+      { t: 170, icon: '⚡', desc: 'S-II Ignition — Second stage 5× J-2 engines' },
+      { t: 550, icon: '🔥', desc: 'S-II Burnout / Separation — 185 km altitude' },
+      { t: 560, icon: '⚡', desc: 'S-IVB Ignition — Parking orbit insertion' },
+      { t: 700, icon: '🌍', desc: 'Parking Orbit — 185 km circular orbit achieved' },
+      { t: 10000, icon: '🚀', desc: 'TLI Burn — Trans-Lunar Injection, Δv = 3.05 km/s' },
+      { t: 260000, icon: '🌙', desc: 'LOI — Lunar Orbit Insertion, 111 km circular' },
+      { t: 380000, icon: '🦅', desc: 'LM Separation — Eagle undocks from Columbia' },
+      { t: 400000, icon: '🛬', desc: 'Powered Descent — 12 min to lunar surface' },
+      { t: 408000, icon: '🌑', desc: '"The Eagle has landed" — Sea of Tranquility' },
+      { t: 500000, icon: '🚶', desc: '"One small step for man..."' },
+      { t: 600000, icon: '🚀', desc: 'Lunar Ascent — Eagle returns to orbit' },
+      { t: 700000, icon: '🤝', desc: 'Docking — Eagle reunites with Columbia' },
+      { t: 750000, icon: '🌍', desc: 'TEI Burn — Heading home' },
+      { t: 900000, icon: '🛡️', desc: 'Re-entry — 11.1 km/s, 6.5g peak deceleration' },
+      { t: 910000, icon: '🪂', desc: 'Splashdown — Pacific Ocean, July 24, 1969' },
+    ],
+    simulate: function(progress) {
+      // progress: 0–1
+      const phases = [
+        { end: 0.08, alt: p => p * 185, vel: p => p * 7800, range: p => p * 200, label: 'Ascent' },
+        { end: 0.12, alt: p => 185, vel: p => 7800, range: p => 200 + p * 300, label: 'Parking Orbit' },
+        { end: 0.25, alt: p => 185 + p * 384000, vel: p => 7800 + p * 3000, range: p => 500 + p * 20000, label: 'Trans-Lunar Coast' },
+        { end: 0.35, alt: p => 384000 + p * 111 - p * 384000, vel: p => 10800 - p * 9200, range: p => 20000, label: 'Lunar Approach' },
+        { end: 0.45, alt: p => 111 * (1 - p) + 1737, vel: p => 1600 * (1 - p), range: p => 20000, label: 'Lunar Descent' },
+        { end: 0.55, alt: p => 1737, vel: p => 0, range: p => 20000, label: 'Lunar Surface' },
+        { end: 0.65, alt: p => 1737 + p * 111, vel: p => p * 1600, range: p => 20000, label: 'Lunar Ascent' },
+        { end: 0.85, alt: p => 384000 - p * 384000, vel: p => 1600 + p * 9200, range: p => 20000 - p * 19500, label: 'Trans-Earth Coast' },
+        { end: 1.0, alt: p => 120 * (1 - p), vel: p => 11100 * (1 - p), range: p => 500 - p * 500, label: 'Re-entry & Landing' },
+      ];
+      let cumStart = 0;
+      for (const phase of phases) {
+        if (progress <= phase.end) {
+          const localP = (progress - cumStart) / (phase.end - cumStart);
+          return { alt: phase.alt(localP), vel: phase.vel(localP), range: phase.range(localP), label: phase.label };
+        }
+        cumStart = phase.end;
+      }
+      return { alt: 0, vel: 0, range: 0, label: 'Complete' };
+    }
+  },
+  falcon9: {
+    name: 'Falcon 9 RTLS',
+    events: [
+      { t: 0, icon: '🚀', desc: 'Liftoff — 9× Merlin 1D, 7,607 kN total thrust' },
+      { t: 15, icon: '🌪️', desc: 'Max-Q — Throttle down through maximum dynamic pressure' },
+      { t: 150, icon: '🔥', desc: 'MECO — Main Engine Cut-Off at 80 km, 2.3 km/s' },
+      { t: 153, icon: '💫', desc: 'Stage Separation — Pneumatic pushers deploy' },
+      { t: 155, icon: '⚡', desc: 'Second Stage Ignition — MVac engine starts' },
+      { t: 180, icon: '🔄', desc: 'Boostback Burn — 3 engines, reversing trajectory' },
+      { t: 210, icon: '🧊', desc: 'Boostback Complete — Heading back to LZ-1' },
+      { t: 350, icon: '🛡️', desc: 'Entry Burn — 3 engines, supersonic retropropulsion' },
+      { t: 370, icon: '✨', desc: 'Grid Fins Deploy — Aerodynamic guidance' },
+      { t: 440, icon: '🔥', desc: 'Landing Burn — 1 engine, final approach' },
+      { t: 465, icon: '🦅', desc: '"The Falcon has landed" — LZ-1 touchdown' },
+    ],
+    simulate: function(progress) {
+      const phases = [
+        { end: 0.30, alt: p => p * 80, vel: p => p * 2300, range: p => p * 50, label: 'Ascent' },
+        { end: 0.35, alt: p => 80 + p * 20, vel: p => 2300, range: p => 50 + p * 30, label: 'MECO' },
+        { end: 0.50, alt: p => 100 - p * 30, vel: p => 2300 - p * 1500, range: p => 80 - p * 50, label: 'Boostback' },
+        { end: 0.75, alt: p => 70 - p * 50, vel: p => 800 + p * 500, range: p => 30 - p * 25, label: 'Coast & Entry' },
+        { end: 0.90, alt: p => 20 - p * 18, vel: p => 1300 - p * 1100, range: p => 5 - p * 4, label: 'Entry Burn' },
+        { end: 1.0, alt: p => 2 * (1 - p), vel: p => 200 * (1 - p), range: p => 1 * (1 - p), label: 'Landing Burn' },
+      ];
+      let cumStart = 0;
+      for (const phase of phases) {
+        if (progress <= phase.end) {
+          const localP = (progress - cumStart) / (phase.end - cumStart);
+          return { alt: phase.alt(localP), vel: phase.vel(localP), range: phase.range(localP), label: phase.label };
+        }
+        cumStart = phase.end;
+      }
+      return { alt: 0, vel: 0, range: 0, label: 'Landed' };
+    }
+  }
+};
+
+function loadMission() {
+  const key = document.getElementById('missionSel').value;
+  const mission = MISSIONS[key];
+  if (!mission) return;
+  document.getElementById('msTimeline').innerHTML = mission.events.map(e =>
+    `<div class="tl-event"><div class="tl-time">T+${e.t < 3600 ? e.t+'s' : (e.t/3600).toFixed(1)+'h'}</div><div class="tl-icon">${e.icon}</div><div class="tl-desc">${e.desc}</div></div>`
+  ).join('');
+}
+loadMission();
+
+function stopMission() {
+  if (missionAnim) cancelAnimationFrame(missionAnim);
+  missionAnim = null;
+  document.getElementById('msOv').textContent = 'Stopped';
+}
+
+function playMission() {
+  stopMission();
+  const key = document.getElementById('missionSel').value;
+  const mission = MISSIONS[key];
+  if (!mission) return;
+
+  const startTime = performance.now();
+  const duration = 20000; // 20s for full replay
+  const eventEls = document.querySelectorAll('#msTimeline .tl-event');
+
+  function frame(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const state = mission.simulate(progress);
+
+    const ctx = getCtx('msCanvas');
+    clearCanvas(ctx);
+    const W = ctx.W, H = ctx.H;
+
+    // Stars
+    if (!frame.stars) {
+      frame.stars = Array.from({length: 80}, () => ({x: Math.random()*1200, y: Math.random()*500, b: Math.random()}));
+    }
+    frame.stars.forEach(s => {
+      ctx.fillStyle = `rgba(255,255,255,${s.b * 0.6})`; ctx.fillRect(s.x % W, s.y % H, 1, 1);
+    });
+
+    // Earth/Moon based on mission
+    if (key === 'apollo11') {
+      // Earth (left)
+      const earthR = 40;
+      const earthG = ctx.createRadialGradient(80, H/2, earthR*0.3, 80, H/2, earthR);
+      earthG.addColorStop(0, '#3366cc'); earthG.addColorStop(1, '#1144aa');
+      ctx.fillStyle = earthG; ctx.beginPath(); ctx.arc(80, H/2, earthR, 0, 2*PI); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.textAlign = 'center'; ctx.fillText('Earth', 80, H/2 + earthR + 14);
+
+      // Moon (right)
+      const moonR = 20;
+      const moonG = ctx.createRadialGradient(W-100, H/2, moonR*0.3, W-100, H/2, moonR);
+      moonG.addColorStop(0, '#ccccbb'); moonG.addColorStop(1, '#888877');
+      ctx.fillStyle = moonG; ctx.beginPath(); ctx.arc(W-100, H/2, moonR, 0, 2*PI); ctx.fill();
+      ctx.fillText('Moon', W-100, H/2 + moonR + 14);
+
+      // Spacecraft position
+      const sx = 80 + progress * (W - 200);
+      const sy = H/2 - Math.sin(progress * PI) * 120;
+      ctx.fillStyle = '#ffaa22'; ctx.beginPath(); ctx.arc(sx, sy, 4, 0, 2*PI); ctx.fill();
+
+      // Trail
+      ctx.beginPath(); ctx.strokeStyle = 'rgba(0,204,255,0.3)'; ctx.lineWidth = 1;
+      for (let i = 0; i <= progress * 100; i++) {
+        const p = i / 100;
+        const tx = 80 + p * (W - 200);
+        const ty = H/2 - Math.sin(p * PI) * 120;
+        if (i === 0) ctx.moveTo(tx, ty); else ctx.lineTo(tx, ty);
+      }
+      ctx.stroke();
+    } else {
+      // Falcon 9: ground-relative view
+      ctx.fillStyle = '#1a1a0a'; ctx.fillRect(0, H - 30, W, 30);
+      // Pad
+      ctx.fillStyle = '#444'; ctx.fillRect(W/2 - 20, H - 34, 40, 6);
+      ctx.fillStyle = '#ff4466'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('LZ-1', W/2, H - 14);
+
+      const maxAlt = 100;
+      const scaleY = (H - 60) / maxAlt;
+      const sx = W/2 + state.range * 8;
+      const sy = H - 34 - state.alt * scaleY;
+
+      // Trail
+      ctx.beginPath(); ctx.strokeStyle = 'rgba(0,204,255,0.3)'; ctx.lineWidth = 1;
+      for (let i = 0; i <= progress * 200; i++) {
+        const p = i / 200;
+        const s2 = mission.simulate(p);
+        const tx = W/2 + s2.range * 8;
+        const ty = H - 34 - s2.alt * scaleY;
+        if (i === 0) ctx.moveTo(tx, ty); else ctx.lineTo(tx, ty);
+      }
+      ctx.stroke();
+
+      // Rocket
+      ctx.fillStyle = '#ddd'; ctx.fillRect(sx - 3, sy - 15, 6, 25);
+      if (state.vel > 100 && progress < 0.35) {
+        ctx.fillStyle = 'rgba(255,150,50,0.8)';
+        ctx.beginPath(); ctx.moveTo(sx-4, sy+10); ctx.lineTo(sx+4, sy+10); ctx.lineTo(sx, sy+25); ctx.fill();
+      }
+    }
+
+    // HUD
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(mission.name, 15, 24);
+    ctx.font = '12px monospace';
+    ctx.fillStyle = '#00ccff'; ctx.fillText(`Phase: ${state.label}`, 15, 44);
+    ctx.fillStyle = '#44ff88'; ctx.fillText(`Alt: ${state.alt.toFixed(1)} km`, 15, 62);
+    ctx.fillStyle = '#ffaa22'; ctx.fillText(`Vel: ${state.vel.toFixed(0)} m/s`, 15, 80);
+    ctx.fillStyle = '#888'; ctx.fillText(`Progress: ${(progress*100).toFixed(0)}%`, 15, 98);
+
+    // Highlight current event in timeline
+    const currentEventIdx = mission.events.filter(e => {
+      const normalizedT = e.t / mission.events[mission.events.length-1].t;
+      return normalizedT <= progress;
+    }).length - 1;
+    eventEls.forEach((el, i) => {
+      el.style.background = i === currentEventIdx ? 'rgba(0,204,255,0.08)' : '';
+      el.style.borderLeft = i === currentEventIdx ? '3px solid #00ccff' : '';
+    });
+    if (currentEventIdx >= 0 && currentEventIdx < eventEls.length) {
+      eventEls[currentEventIdx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    document.getElementById('msOv').textContent = state.label;
+
+    if (progress < 1) missionAnim = requestAnimationFrame(frame);
+    else document.getElementById('msOv').textContent = '✅ Mission Complete';
+  }
+  missionAnim = requestAnimationFrame(frame);
+}
+
+// ── Auto-run initial views ──
+runTrajectory();
+runOrbit();
+setTimeout(runReentry, 100);
+setTimeout(runLanding, 200);
+</script>
+</body>
+</html>

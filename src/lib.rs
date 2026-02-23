@@ -13,3 +13,6 @@ pub mod propulsion;
 pub mod reentry;
 pub mod sgp4;
 pub mod trajectory;
+
+#[cfg(feature = "wasm")]
+pub mod wasm;
