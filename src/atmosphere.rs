@@ -48,6 +48,63 @@ pub struct AtmosphereResult {
     pub viscosity: f64,
 }
 
+/// Atmospheric model selector
+#[derive(Debug, Clone, Copy)]
+pub enum AtmosphereModel {
+    /// US Standard Atmosphere 1976 (0-86 km)
+    UsStandard1976,
+    /// Mars atmosphere model (placeholder)
+    Mars,
+}
+
+impl AtmosphereModel {
+    /// Create US Standard 1976 atmosphere model
+    pub fn us_standard_1976() -> Self {
+        AtmosphereModel::UsStandard1976
+    }
+
+    /// Create Mars atmosphere model (placeholder)
+    pub fn mars() -> Self {
+        AtmosphereModel::Mars
+    }
+
+    /// Get atmospheric properties at given altitude
+    pub fn query(&self, altitude_m: f64) -> Option<AtmosphereResult> {
+        match self {
+            AtmosphereModel::UsStandard1976 => us_standard_atmosphere(altitude_m),
+            AtmosphereModel::Mars => {
+                // Placeholder: use simplified Mars atmosphere
+                // Real implementation would need proper Mars model
+                if altitude_m > 80_000.0 { return None; }
+                Some(AtmosphereResult {
+                    altitude: altitude_m,
+                    temperature: 210.0 - altitude_m * 0.001, // Rough approximation
+                    pressure: 610.0 * (-altitude_m / 10_400.0).exp(), // Scale height ~10.4 km
+                    density: 0.02 * (-altitude_m / 10_400.0).exp(),
+                    speed_of_sound: 240.0, // Rough approximation
+                    viscosity: 1.3e-5,     // Rough approximation
+                })
+            }
+        }
+    }
+
+    /// Get atmospheric density at given altitude
+    pub fn density(&self, altitude_m: f64) -> Result<f64, String> {
+        match self.query(altitude_m) {
+            Some(result) => Ok(result.density),
+            None => Err("Altitude out of range".to_string()),
+        }
+    }
+
+    /// Get atmospheric density, pressure, and temperature at given altitude
+    pub fn density_pressure_temperature(&self, altitude_m: f64) -> Result<(f64, f64, f64), String> {
+        match self.query(altitude_m) {
+            Some(result) => Ok((result.density, result.pressure, result.temperature)),
+            None => Err("Altitude out of range".to_string()),
+        }
+    }
+}
+
 /// Ratio of specific heats for air
 const GAMMA_AIR: f64 = 1.4;
 
