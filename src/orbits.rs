@@ -248,6 +248,59 @@ pub fn hohmann_transfer(r1: f64, r2: f64, mu: f64) -> (f64, f64, f64, f64) {
     (dv1, dv2, dv1 + dv2, transfer_time)
 }
 
+/// Bi-elliptic transfer delta-v values.
+///
+/// Uses an intermediate orbit with apoapsis at `r_intermediate` to transfer
+/// from circular orbit at `r1` to circular orbit at `r2`.
+///
+/// Returns (delta_v1, delta_v2, delta_v3, total_delta_v, transfer_time) in (km/s, ..., seconds).
+///
+/// This can be more efficient than Hohmann for r2/r1 > 11.94.
+///
+/// Reference: Curtis, §6.3
+pub fn bi_elliptic_transfer(
+    r1: f64,
+    r2: f64,
+    r_intermediate: f64,
+    mu: f64,
+) -> (f64, f64, f64, f64, f64) {
+    // First transfer ellipse: r1 → r_intermediate
+    let a1 = (r1 + r_intermediate) / 2.0;
+    // Second transfer ellipse: r_intermediate → r2
+    let a2 = (r_intermediate + r2) / 2.0;
+
+    let v_c1 = circular_velocity(r1, mu);
+    let v_c2 = circular_velocity(r2, mu);
+
+    // Velocities on first transfer ellipse
+    let v_t1_dep = vis_viva(r1, a1, mu);
+    let v_t1_arr = vis_viva(r_intermediate, a1, mu);
+
+    // Velocities on second transfer ellipse
+    let v_t2_dep = vis_viva(r_intermediate, a2, mu);
+    let v_t2_arr = vis_viva(r2, a2, mu);
+
+    let dv1 = (v_t1_dep - v_c1).abs();
+    let dv2 = (v_t2_dep - v_t1_arr).abs();
+    let dv3 = (v_c2 - v_t2_arr).abs();
+
+    let transfer_time = PI * (a1.powi(3) / mu).sqrt() + PI * (a2.powi(3) / mu).sqrt();
+
+    (dv1, dv2, dv3, dv1 + dv2 + dv3, transfer_time)
+}
+
+/// Sphere of influence radius (km).
+///
+/// r_SOI = a · (m/M)^(2/5)
+///
+/// # Arguments
+/// * `a` - Semi-major axis of the smaller body's orbit around the larger (km)
+/// * `m_body` - Mass parameter (μ) of the smaller body (km³/s²)
+/// * `m_central` - Mass parameter (μ) of the central body (km³/s²)
+pub fn sphere_of_influence(a: f64, mu_body: f64, mu_central: f64) -> f64 {
+    a * (mu_body / mu_central).powf(0.4)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -320,6 +373,31 @@ mod tests {
             elements.i,
             elements2.i
         );
+    }
+
+    #[test]
+    fn test_bi_elliptic_vs_hohmann() {
+        // For large ratio (r2/r1 > 11.94), bi-elliptic can be cheaper
+        let r1 = R_EARTH_EQUATORIAL + 200.0;
+        let r2 = R_EARTH_EQUATORIAL + 200_000.0; // very high orbit
+        let r_int = R_EARTH_EQUATORIAL + 400_000.0;
+
+        let (_, _, _, dv_bi, _) = bi_elliptic_transfer(r1, r2, r_int, MU_EARTH);
+        let (_, _, dv_hoh, _) = hohmann_transfer(r1, r2, MU_EARTH);
+
+        // Bi-elliptic should be cheaper for this large ratio
+        assert!(
+            dv_bi < dv_hoh,
+            "Bi-elliptic ({dv_bi:.4}) should beat Hohmann ({dv_hoh:.4}) for large ratio"
+        );
+    }
+
+    #[test]
+    fn test_sphere_of_influence_earth() {
+        use crate::constants::{AU_KM, MU_SUN};
+        // Earth SOI ≈ 924,000 km
+        let soi = sphere_of_influence(AU_KM, MU_EARTH, MU_SUN);
+        assert!((soi - 924_000.0).abs() < 30_000.0, "Earth SOI: {soi:.0} km");
     }
 
     #[test]
