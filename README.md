@@ -81,11 +81,19 @@ rocketlab/
 
 ## 🚀 Quick Start
 
+### Install CLI
+
+```bash
+cargo install --git https://github.com/redbasecap-buiss/rocketlab.git
+```
+
+### Use as Library
+
 Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rocketlab = "1.0"
+rocketlab = { git = "https://github.com/redbasecap-buiss/rocketlab.git" }
 nalgebra = "0.33"
 chrono = "0.4"
 ```
