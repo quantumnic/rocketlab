@@ -181,6 +181,35 @@ mod tests {
     }
 
     #[test]
+    fn test_near_parabolic() {
+        // Very high eccentricity, close to parabolic (e ≈ 1)
+        let m = 0.5;
+        let ecc = 0.9999;
+        let ea = solve_kepler(m, ecc).unwrap();
+
+        let m_check = ea - ecc * ea.sin();
+        assert!((m_check - m).abs() < 1e-8);
+    }
+
+    #[test]
+    fn test_edge_case_zero_mean_anomaly() {
+        // M = 0 should give E = 0 for any eccentricity
+        let ecc = 0.5;
+        let ea = solve_kepler(0.0, ecc).unwrap();
+        assert!(ea.abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_edge_case_pi_mean_anomaly() {
+        // M = π case
+        let m = std::f64::consts::PI;
+        let ecc = 0.3;
+        let ea = solve_kepler(m, ecc).unwrap();
+        let m_check = ea - ecc * ea.sin();
+        assert!((m_check - m).abs() < 1e-10);
+    }
+
+    #[test]
     fn test_anomaly_roundtrip() {
         let ecc = 0.3;
         let nu = 1.2;
@@ -207,5 +236,36 @@ mod tests {
         // Verify: M = e*sinh(H) - H
         let m_check = ecc * h.sinh() - h;
         assert!((m_check - m).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_hyperbolic_escape_velocity() {
+        // High hyperbolic eccentricity
+        let ecc = 2.5;
+        let m = 1.0;
+        let h = solve_kepler(m, ecc).unwrap();
+
+        let m_check = ecc * h.sinh() - h;
+        assert!((m_check - m).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_invalid_negative_eccentricity() {
+        let result = solve_kepler(1.0, -0.1);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_full_anomaly_conversion_chain() {
+        // Test complete conversion chain: M → E → ν → E → M
+        let ecc = 0.6;
+        let m_orig = 2.5;
+        
+        let ea = solve_kepler(m_orig, ecc).unwrap();
+        let nu = eccentric_to_true_anomaly(ea, ecc);
+        let ea2 = true_to_eccentric_anomaly(nu, ecc);
+        let m_final = eccentric_to_mean_anomaly(ea2, ecc);
+        
+        assert!((m_orig - m_final).abs() < 1e-10);
     }
 }

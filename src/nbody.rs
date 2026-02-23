@@ -15,11 +15,10 @@
 //! - Montenbruck & Gill "Satellite Orbits: Models, Methods, Applications" (2000)
 //! - Seidelmann "Explanatory Supplement to the Astronomical Almanac" (2006)
 
-use nalgebra::{Vector3, Matrix3, Vector6};
+use nalgebra::Vector3;
 use crate::constants::{MU_EARTH, R_EARTH, J2_EARTH, C_LIGHT, AU_KM, TWO_PI};
 use crate::atmosphere::AtmosphereModel;
 use chrono::{DateTime, Utc, Datelike};
-use std::f64::consts::PI;
 
 /// Complete state vector for high-precision orbit propagation
 #[derive(Debug, Clone)]
@@ -522,7 +521,7 @@ impl NBODYPropagator {
             return Ok(Vector3::zeros());
         }
         
-        Ok(srp_accel * 1e-9) // Convert m/s² to km/s²
+        Ok(srp_accel * 1e-3) // Convert m/s² to km/s²
     }
     
     /// Compute relativistic corrections
@@ -926,7 +925,8 @@ mod tests {
     fn test_orbital_elements_computation() {
         let prop = NBODYPropagator::fast();
         let r = Vector3::new(7000.0, 0.0, 0.0);
-        let v = Vector3::new(0.0, 7.5, 0.0);
+        let v_circ = (MU_EARTH / 7000.0).sqrt(); // ~7.546 km/s
+        let v = Vector3::new(0.0, v_circ, 0.0);
         
         let elements = prop.compute_orbital_elements(&r, &v);
         

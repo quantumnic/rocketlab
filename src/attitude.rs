@@ -15,9 +15,9 @@
 //! - Sidi "Spacecraft Dynamics and Control" (1997)
 //! - Markley & Crassidis "Fundamentals of Spacecraft Attitude Determination and Control" (2014)
 
-use nalgebra::{Vector3, Matrix3, Quaternion, UnitQuaternion, Vector4};
-use crate::constants::{PI, MU_EARTH, R_EARTH};
-use std::f64::consts::{FRAC_PI_2, TAU};
+use nalgebra::{Vector3, Matrix3, Quaternion, UnitQuaternion};
+use crate::constants::MU_EARTH;
+use std::f64::consts::FRAC_PI_2;
 
 /// Spacecraft attitude state representation
 #[derive(Debug, Clone)]
@@ -722,7 +722,8 @@ mod tests {
         let torque = mtq.calculate_torque(&b_field);
         
         assert!(torque.magnitude() > 0.0);
-        assert!((torque - Vector3::new(0.0, -0.05, 0.0)).magnitude() < 1e-6);
+        // dipole=1 A⋅m², B=(0,0,50000nT)=(0,0,5e-5T), τ = m×B = (0, -5e-5, 0)
+        assert!((torque - Vector3::new(0.0, -5e-5, 0.0)).magnitude() < 1e-8);
     }
     
     #[test]
@@ -775,7 +776,9 @@ mod tests {
         let dipole_needed = Magnetorquer::size_for_torque(torque_required, b_field_strength);
         
         assert!(dipole_needed > 0.0);
-        assert!(dipole_needed < 1.0); // Reasonable dipole moment
+        // dipole = T/B = 1e-3 / 5e-5 = 20 A⋅m² — reasonable for spacecraft
+        assert!(dipole_needed > 0.0);
+        assert!(dipole_needed < 100.0); // Reasonable dipole moment
     }
     
     #[test]  

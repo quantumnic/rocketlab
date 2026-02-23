@@ -15,9 +15,8 @@
 //! - Kelso "Validation of SGP4 and IS-GPS-200D Against GPS Precision Ephemerides"
 
 use nalgebra::{Vector3, Matrix3};
-use chrono::{DateTime, Utc, Datelike, Timelike};
-use crate::constants::{PI, TWO_PI, MU_EARTH, R_EARTH, J2_EARTH, OMEGA_EARTH};
-use std::str::FromStr;
+use chrono::{DateTime, Utc};
+use crate::constants::{PI, TWO_PI, MU_EARTH, R_EARTH, J2_EARTH};
 
 /// Two-Line Element set for satellite orbital data
 /// 
@@ -222,6 +221,7 @@ impl TLE {
     /// 
     /// # Example
     /// ```
+    /// use rocketlab::sgp4::TLE;
     /// let tle_str = r#"ISS (ZARYA)             
     /// 1 25544U 98067A   24066.59219907  .00001428  00000-0  27508-4 0  9999
     /// 2 25544  51.6393 133.4596 0003611  88.4267 271.8081 15.49689498438618"#;
@@ -254,23 +254,23 @@ impl TLE {
         
         let epoch_day: f64 = line1[20..32].parse()
             .map_err(|_| "Invalid epoch day")?;
-        let mean_motion_dot: f64 = line1[33..43].parse()
+        let mean_motion_dot: f64 = line1[33..43].trim().parse()
             .map_err(|_| "Invalid mean motion derivative")?;
         
         // Parse second derivative (scientific notation)
         let mm_ddot_str = line1[44..52].trim();
-        let mean_motion_ddot = if mm_ddot_str.contains("00000-0") {
+        let mean_motion_ddot = if mm_ddot_str == "00000-0" || mm_ddot_str == "00000+0" {
             0.0
         } else {
-            parse_scientific_notation(mm_ddot_str)?
+            parse_tle_scientific(mm_ddot_str)?
         };
         
         // Parse BSTAR (scientific notation)
         let bstar_str = line1[53..61].trim();
-        let bstar = if bstar_str.contains("00000-0") {
+        let bstar = if bstar_str == "00000-0" || bstar_str == "00000+0" {
             0.0
         } else {
-            parse_scientific_notation(bstar_str)?
+            parse_tle_scientific(bstar_str)?
         };
         
         let element_number: u32 = line1[64..68].trim().parse()
@@ -377,94 +377,86 @@ impl SGP4 {
         }
     }
     
-    /// SGP4 propagation for near-Earth satellites
+    /// SGP4 propagation for near-Earth satellites  
+    /// 
+    /// Simplified Keplerian propagation with J2 secular perturbations.
+    /// Computes position/velocity in TEME (True Equator Mean Equinox) frame.
     fn sgp4_propagate(&self, tsince: f64) -> Result<SGP4State, String> {
-        const XJ3: f64 = -2.53881e-6; // J3 term
-        const XKE: f64 = 0.0743669161; // sqrt(GM) in Earth radii^3/2 / min
+        let mu = MU_EARTH; // km³/s²
+        let dt_sec = tsince * 60.0; // Convert minutes to seconds
         
-        let init = &self.init_data;
+        // Semi-major axis from mean motion (km)
+        // n = sqrt(mu/a³) → a = (mu/n²)^(1/3)
+        let n_rad_sec = self.n0 / 60.0; // rad/s
+        let a_km = (mu / (n_rad_sec * n_rad_sec)).powf(1.0 / 3.0);
         
-        // Update for secular gravity and atmospheric drag
-        let omgadf = self.w0 + init.omgcof * tsince;
-        let xmdf = self.m0 + init.xmcof * tsince;
-        let omega = omgadf + init.xlcof * tsince.powi(2);
-        let m = xmdf + init.x1mth2 * init.c1 * tsince.powi(2);
-        
-        // Update for drag
-        let delomg = init.omgcof + 3.0 * init.c1 * tsince.powi(2) / 2.0;
-        let delm = init.xmcof + init.c1 * tsince + init.d2 * tsince.powi(2) + 
-                   init.d3 * tsince.powi(3) + init.d4 * tsince.powi(4);
-        
-        let mp = self.m0 + delm;
-        let omega_p = self.w0 + delomg;
-        let truelon = mp + omega_p + init.con41 * tsince.powi(3);
-        
-        // Kepler equation solution
-        let eccentric_anomaly = solve_kepler(mp, self.e0)?;
-        
-        // Short period periodics  
-        let e = self.e0 - init.cc4 * tsince - init.cc5 * (eccentric_anomaly.sin() - init.sinmao);
-        let a = self.a * (1.0 - init.c1 * tsince - init.d2 * tsince.powi(2) - 
-                          init.d3 * tsince.powi(3) - init.d4 * tsince.powi(4)).powi(2);
-        let l = mp + omega_p + init.con41 * tsince.powi(3);
-        let beta = (1.0 - e.powi(2)).sqrt();
-        let n = XKE / a.powf(1.5);
-        
-        // Long period periodics
-        let axn = e * omega.cos();
-        let ll = init.aycof * (self.i0 / 2.0).sin() + l + omega;
-        let aynl = -e * omega.sin() / init.cosio;
-        let lt = ll + init.xlcof * axn;
-        
-        // Position and velocity in orbital plane
-        let u = (lt - omega).fract() * TWO_PI;
-        let r = a * (1.0 - e * eccentric_anomaly.cos());
-        let rdot = XKE * (e * eccentric_anomaly.sin()).sqrt() / r;
-        let rfdot = XKE * beta.sqrt() / r;
-        
-        let cos_u = u.cos();
-        let sin_u = u.sin();
-        
-        // Transform to TEME coordinates
-        let cos_omega = omega.cos();
-        let sin_omega = omega.sin();
+        // J2 secular perturbations (Vallado, Eq 9-41)
+        let p = a_km * (1.0 - self.e0 * self.e0);
         let cos_i = self.i0.cos();
         let sin_i = self.i0.sin();
-        let cos_raan = self.omega0.cos();
-        let sin_raan = self.omega0.sin();
+        let n_dot_factor = 1.5 * J2_EARTH * (R_EARTH / p).powi(2);
         
-        let ux = cos_u * cos_omega - sin_u * sin_omega;
-        let uy = sin_u * cos_omega + cos_u * sin_omega;
-        let uz = 0.0;
+        // RAAN drift: dΩ/dt = -n * n_dot_factor * cos(i)
+        let omega_dot = -n_rad_sec * n_dot_factor * cos_i;
+        // Argument of perigee drift: dω/dt = n * n_dot_factor * (2 - 2.5*sin²i)
+        let w_dot = n_rad_sec * n_dot_factor * (2.0 - 2.5 * sin_i * sin_i);
         
-        let vx = rdot * ux - rfdot * (sin_u * cos_omega + cos_u * sin_omega);
-        let vy = rdot * uy - rfdot * (-cos_u * sin_omega + sin_u * cos_omega);
-        let vz = 0.0;
+        // Updated elements at time tsince
+        let omega_t = self.omega0 + omega_dot * dt_sec;
+        let w_t = self.w0 + w_dot * dt_sec;
+        let m_t = self.m0 + n_rad_sec * dt_sec;
         
-        // Rotate by inclination and RAAN
-        let position = Vector3::new(
-            (ux * cos_raan - uy * sin_raan * cos_i) * r * R_EARTH,
-            (ux * sin_raan + uy * cos_raan * cos_i) * r * R_EARTH,
-            uy * sin_i * r * R_EARTH,
+        // Solve Kepler's equation for eccentric anomaly
+        let ea = solve_kepler(m_t, self.e0)?;
+        
+        // True anomaly
+        let nu = eccentric_to_true_anomaly(ea, self.e0);
+        
+        // Radius
+        let r = a_km * (1.0 - self.e0 * ea.cos());
+        
+        // Position and velocity in perifocal frame (PQW)
+        let cos_nu = nu.cos();
+        let sin_nu = nu.sin();
+        let sqrt_mu_p = (mu / p).sqrt();
+        
+        let r_pqw = Vector3::new(r * cos_nu, r * sin_nu, 0.0);
+        let v_pqw = Vector3::new(-sqrt_mu_p * sin_nu, sqrt_mu_p * (self.e0 + cos_nu), 0.0);
+        
+        // Rotation matrix: PQW → TEME (through ω, i, Ω)
+        let cos_w = w_t.cos();
+        let sin_w = w_t.sin();
+        let cos_o = omega_t.cos();
+        let sin_o = omega_t.sin();
+        let cos_i2 = cos_i;
+        let sin_i2 = sin_i;
+        
+        let rot = Matrix3::new(
+            cos_o * cos_w - sin_o * sin_w * cos_i2,
+            -cos_o * sin_w - sin_o * cos_w * cos_i2,
+            sin_o * sin_i2,
+            sin_o * cos_w + cos_o * sin_w * cos_i2,
+            -sin_o * sin_w + cos_o * cos_w * cos_i2,
+            -cos_o * sin_i2,
+            sin_w * sin_i2,
+            cos_w * sin_i2,
+            cos_i2,
         );
         
-        let velocity = Vector3::new(
-            (vx * cos_raan - vy * sin_raan * cos_i) * XKE * R_EARTH / 60.0,
-            (vx * sin_raan + vy * cos_raan * cos_i) * XKE * R_EARTH / 60.0,
-            vy * sin_i * XKE * R_EARTH / 60.0,
-        );
+        let position = rot * r_pqw;
+        let velocity = rot * v_pqw;
         
         let elements = OrbitalElements {
-            a: a * R_EARTH,
-            e,
+            a: a_km,
+            e: self.e0,
             i: self.i0,
-            raan: self.omega0,
-            argp: omega,
-            nu: eccentric_to_true_anomaly(eccentric_anomaly, e),
-            m: mp,
-            arglat: u + omega,
-            truelon: truelon.fract() * TWO_PI,
-            lonper: omega + self.omega0,
+            raan: omega_t,
+            argp: w_t,
+            nu,
+            m: m_t.rem_euclid(TWO_PI),
+            arglat: (w_t + nu).rem_euclid(TWO_PI),
+            truelon: (omega_t + w_t + nu).rem_euclid(TWO_PI),
+            lonper: (omega_t + w_t).rem_euclid(TWO_PI),
         };
         
         Ok(SGP4State {
@@ -485,8 +477,8 @@ impl SGP4 {
 
 /// Initialize SGP4 constants
 fn sgp4_init(
-    i0: f64, omega0: f64, w0: f64, m0: f64, n0: f64, e0: f64, bstar: f64,
-    deep_space: bool, tle: &TLE
+    i0: f64, _omega0: f64, _w0: f64, m0: f64, n0: f64, e0: f64, bstar: f64,
+    _deep_space: bool, _tle: &TLE
 ) -> Result<SGP4InitData, String> {
     const XJ2: f64 = 1.082616e-3; // J2 coefficient
     const XJ3: f64 = -2.53881e-6; // J3 coefficient  
@@ -499,7 +491,7 @@ fn sgp4_init(
     
     let a = (XKE / n0).powf(2.0 / 3.0);
     let beta2 = 1.0 - e0.powi(2);
-    let beta = beta2.sqrt();
+    let _beta = beta2.sqrt();
     
     // Drag coefficient calculations
     let c1 = bstar * 1.5 * XKE * XJ2 * (a / beta2).powi(2);
@@ -535,7 +527,8 @@ fn solve_kepler(mean_anomaly: f64, eccentricity: f64) -> Result<f64, String> {
     const MAX_ITERATIONS: usize = 20;
     const TOLERANCE: f64 = 1e-12;
     
-    let m = mean_anomaly.fract() * TWO_PI; // Normalize
+    // Normalize mean anomaly to [0, 2π]
+    let m = mean_anomaly.rem_euclid(TWO_PI);
     let mut e = if m < PI { m + eccentricity / 2.0 } else { m - eccentricity / 2.0 };
     
     for _ in 0..MAX_ITERATIONS {
@@ -565,21 +558,44 @@ fn eccentric_to_true_anomaly(e_anom: f64, ecc: f64) -> f64 {
     sin_nu.atan2(cos_nu)
 }
 
-/// Parse scientific notation in TLE format (e.g., "12345-4" = 0.12345)
+/// Parse scientific notation in TLE format (e.g., "12345-4" = 0.12345e-4)
+/// Also handles formats like " 27508-4", "-12345-4", "+12345-4"
 fn parse_scientific_notation(s: &str) -> Result<f64, String> {
-    if s.len() < 6 {
-        return Err("Invalid scientific notation format".to_string());
+    parse_tle_scientific(s)
+}
+
+/// Parse TLE scientific notation: assumes implied decimal point
+/// Format: [+-]NNNNN[+-]E where result = 0.NNNNN * 10^(+-E)
+fn parse_tle_scientific(s: &str) -> Result<f64, String> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Err("Empty scientific notation string".to_string());
     }
     
-    let mantissa_str = &s[0..5];
-    let exponent_str = &s[5..];
+    // Handle sign
+    let (sign, rest) = if s.starts_with('-') {
+        (-1.0, &s[1..])
+    } else if s.starts_with('+') {
+        (1.0, &s[1..])
+    } else {
+        (1.0, s)
+    };
+    
+    // Find the exponent sign (last - or + that's not at the start)
+    let exp_pos = rest.rfind(|c| c == '-' || c == '+')
+        .ok_or("No exponent found in TLE scientific notation")?;
+    
+    let mantissa_str = &rest[..exp_pos];
+    let exponent_str = &rest[exp_pos..];
     
     let mantissa: f64 = mantissa_str.parse()
-        .map_err(|_| "Invalid mantissa")?;
+        .map_err(|e| format!("Invalid mantissa '{}': {}", mantissa_str, e))?;
     let exponent: i32 = exponent_str.parse()
-        .map_err(|_| "Invalid exponent")?;
+        .map_err(|e| format!("Invalid exponent '{}': {}", exponent_str, e))?;
     
-    Ok(mantissa * 10.0_f64.powi(exponent) / 100000.0)
+    // Implied decimal: 27508 → 0.27508
+    let digits = mantissa_str.len() as i32;
+    Ok(sign * mantissa * 10.0_f64.powi(exponent - digits))
 }
 
 /// Convert epoch year and day to DateTime
@@ -604,7 +620,7 @@ fn epoch_to_datetime(year: u32, day: f64) -> Result<DateTime<Utc>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{DateTime, Utc};
+    use chrono::{DateTime, Utc, Datelike};
     
     #[test]
     fn test_tle_parsing() {
@@ -624,9 +640,10 @@ mod tests {
     
     #[test]
     fn test_scientific_notation_parsing() {
-        assert!((parse_scientific_notation("27508-4").unwrap() - 0.27508e-4).abs() < 1e-10);
-        assert!((parse_scientific_notation("12345-2").unwrap() - 0.12345e-2).abs() < 1e-10);
-        assert!((parse_scientific_notation("00000-0").unwrap() - 0.0).abs() < 1e-10);
+        assert!((parse_tle_scientific("27508-4").unwrap() - 0.27508e-4).abs() < 1e-12);
+        assert!((parse_tle_scientific("12345-2").unwrap() - 0.12345e-2).abs() < 1e-10);
+        assert!((parse_tle_scientific("00000-0").unwrap()).abs() < 1e-15);
+        assert!((parse_tle_scientific("-12345-3").unwrap() - (-0.12345e-3)).abs() < 1e-12);
     }
     
     #[test]

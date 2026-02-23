@@ -15,9 +15,8 @@
 //! - Blackmore, L. "Autonomous Precision Landing of Space Rockets" (2016)
 //! - Scharf, D. et al. "ADAPT Demonstrations of Onboard Large-Divert Guidance" (2014)
 
-use nalgebra::{Vector3, Matrix3, DMatrix, DVector};
-use crate::constants::{G0, R_EARTH};
-use std::f64::consts::PI;
+use nalgebra::Vector3;
+use crate::constants::G0;
 
 /// Powered descent guidance problem parameters
 #[derive(Debug, Clone)]
@@ -218,7 +217,7 @@ impl PDGSolver {
     }
     
     /// Generate initial linear trajectory guess
-    fn linear_interpolation_guess(&self, tf: f64) -> Vec<Vector3<f64>> {
+    fn linear_interpolation_guess(&self, _tf: f64) -> Vec<Vector3<f64>> {
         (0..self.problem.num_nodes)
             .map(|i| {
                 let t = i as f64 / (self.problem.num_nodes - 1) as f64;
@@ -345,7 +344,7 @@ impl PDGSolver {
         mass[0] = self.problem.m0;
         
         // Optimize final time (simplified)
-        let fuel_used = self.problem.m0 - mass[n - 1];
+        let _fuel_used = self.problem.m0 - mass[n - 1];
         let tf_optimal = tf_guess * 0.95 + 0.05 * self.problem.max_flight_time;
         
         Ok((tf_optimal, position, velocity, thrust, mass))
@@ -506,7 +505,7 @@ pub mod analysis {
     pub fn validate_constraints(problem: &PDGProblem, solution: &PDGSolution) -> ConstraintViolations {
         let mut violations = ConstraintViolations::default();
         
-        for (i, ((thrust, mass), pos)) in solution.thrust.iter()
+        for (i, ((thrust, _mass), pos)) in solution.thrust.iter()
             .zip(&solution.mass)
             .zip(&solution.position)
             .enumerate() {

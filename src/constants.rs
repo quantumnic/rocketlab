@@ -58,3 +58,50 @@ pub const PI: f64 = std::f64::consts::PI;
 
 /// Two pi
 pub const TWO_PI: f64 = 2.0 * PI;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_earth_gravitational_parameter() {
+        // Earth GM should be ~398,600 km³/s²
+        assert!((MU_EARTH - 398_600.441_8).abs() < 1e-3);
+    }
+
+    #[test]
+    fn test_earth_radius() {
+        // Earth mean radius should be ~6,371 km
+        assert!((R_EARTH - 6_371.0).abs() < 1e-3);
+        
+        // Equatorial radius should be ~6,378 km
+        assert!((R_EARTH_EQUATORIAL - 6_378.137).abs() < 1e-3);
+    }
+
+    #[test]
+    fn test_standard_gravity() {
+        // Standard gravity should be 9.80665 m/s²
+        assert!((G0 - 9.80665).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_speed_of_light() {
+        // Speed of light should be 299,792.458 km/s
+        assert!((C_LIGHT - 299_792.458).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_astronomical_unit() {
+        // AU should be ~1.496e8 km
+        assert!((AU_KM - 1.495_978_707e8).abs() < 1e5);
+    }
+
+    #[test]
+    fn test_angular_constants() {
+        // TWO_PI should be ~6.28
+        assert!((TWO_PI - 2.0 * std::f64::consts::PI).abs() < 1e-12);
+        
+        // Earth rotation rate should be ~7.29e-5 rad/s
+        assert!((OMEGA_EARTH - 7.2921159e-5).abs() < 1e-11);
+    }
+}

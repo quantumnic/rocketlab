@@ -7,7 +7,7 @@
 //! - Launch window analysis
 
 use nalgebra::Vector3;
-use crate::constants::{MU_EARTH, MU_SUN, AU_KM, TWO_PI};
+use crate::constants::MU_SUN;
 use crate::lambert::solve_lambert;
 use chrono::{DateTime, Utc, Duration};
 use std::f64::consts::PI;
@@ -336,7 +336,7 @@ pub fn synodic_period(planet1_period: f64, planet2_period: f64) -> f64 {
 }
 
 /// Calculate type-I vs type-II transfer comparison
-pub fn compare_transfer_types(r1: f64, r2: f64, flight_time: f64, mu: f64) -> (f64, f64) {
+pub fn compare_transfer_types(_r1: f64, _r2: f64, _flight_time: f64, _mu: f64) -> (f64, f64) {
     // For now, return placeholder values
     // Real implementation would solve Lambert problem for both short and long way
     let type1_dv = 5.0; // km/s
@@ -363,26 +363,27 @@ fn mjd_to_date(mjd: f64) -> DateTime<Utc> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::constants::{AU_KM, MU_EARTH};
     use approx::assert_relative_eq;
 
     #[test]
     fn test_hohmann_transfer_earth_mars() {
         // Earth to Mars transfer (approximate)
-        let r_earth = 1.0 * AU_KM * 1000.0; // Convert to meters
-        let r_mars = 1.52 * AU_KM * 1000.0;
+        let r_earth = 1.0 * AU_KM; // km
+        let r_mars = 1.52 * AU_KM;
         
         let transfer = hohmann_transfer(r_earth, r_mars, MU_SUN);
         
         // Check transfer semi-major axis
-        assert_relative_eq!(transfer.transfer_sma, 1.26 * AU_KM * 1000.0, epsilon = 0.01);
+        assert_relative_eq!(transfer.transfer_sma, 1.26 * AU_KM, epsilon = 1e6);
         
         // Transfer time should be about 259 days
         let transfer_days = transfer.transfer_time / 86400.0;
         assert_relative_eq!(transfer_days, 259.0, epsilon = 10.0);
         
         // Total delta-V should be reasonable (3-6 km/s)
-        assert!(transfer.total_delta_v > 3000.0);
-        assert!(transfer.total_delta_v < 6000.0);
+        assert!(transfer.total_delta_v > 3.0);
+        assert!(transfer.total_delta_v < 6.0);
     }
 
     #[test]
