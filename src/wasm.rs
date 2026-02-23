@@ -3,8 +3,8 @@
 //! Exposes core simulation functions to JavaScript via wasm-bindgen.
 //! Build with: `wasm-pack build --target web --features wasm`
 
-use wasm_bindgen::prelude::*;
 use serde::Serialize;
+use wasm_bindgen::prelude::*;
 
 use crate::atmosphere;
 use crate::constants::*;
@@ -158,7 +158,12 @@ pub fn simulate_trajectory(
 
 /// Compute orbital positions for given Keplerian elements.
 #[wasm_bindgen]
-pub fn compute_orbit(semi_major: f64, eccentricity: f64, inclination_deg: f64, steps: usize) -> JsValue {
+pub fn compute_orbit(
+    semi_major: f64,
+    eccentricity: f64,
+    inclination_deg: f64,
+    steps: usize,
+) -> JsValue {
     let mu = MU_EARTH;
     let e = eccentricity.clamp(0.0, 0.999);
     let _inc = inclination_deg.to_radians();
@@ -280,20 +285,42 @@ pub fn falcon9_landing(
 
     for _ in 0..steps {
         if z <= 0.0 {
-            points.push(LandingPoint { t, x, z: 0.0, vx, vz, mass: m, thrust: 0.0 });
+            points.push(LandingPoint {
+                t,
+                x,
+                z: 0.0,
+                vx,
+                vz,
+                mass: m,
+                thrust: 0.0,
+            });
             break;
         }
         let has_fuel = m > dry_mass;
-        let thr = if has_fuel && z < altitude * 0.6 { thrust.min(m * G0 * 3.0) } else { 0.0 };
+        let thr = if has_fuel && z < altitude * 0.6 {
+            thrust.min(m * G0 * 3.0)
+        } else {
+            0.0
+        };
         let mdot = if thr > 0.0 { thr / ve } else { 0.0 };
 
-        points.push(LandingPoint { t, x, z, vx, vz, mass: m, thrust: thr });
+        points.push(LandingPoint {
+            t,
+            x,
+            z,
+            vx,
+            vz,
+            mass: m,
+            thrust: thr,
+        });
 
         let az = if thr > 0.0 { thr / m } else { 0.0 } - G0;
         vz += az * dt;
         z += vz * dt;
         m -= mdot * dt;
-        if m < dry_mass { m = dry_mass; }
+        if m < dry_mass {
+            m = dry_mass;
+        }
         t += dt;
     }
 
@@ -303,8 +330,12 @@ pub fn falcon9_landing(
 /// Solve Lambert's problem (positions in km, time of flight in seconds).
 #[wasm_bindgen]
 pub fn lambert_solve(
-    r1x: f64, r1y: f64, r1z: f64,
-    r2x: f64, r2y: f64, r2z: f64,
+    r1x: f64,
+    r1y: f64,
+    r1z: f64,
+    r2x: f64,
+    r2y: f64,
+    r2z: f64,
     tof: f64,
 ) -> JsValue {
     let r1 = nalgebra::Vector3::new(r1x, r1y, r1z);
@@ -312,8 +343,12 @@ pub fn lambert_solve(
     match crate::lambert::solve_lambert(r1, r2, tof, MU_SUN, true) {
         Ok(sol) => {
             let result = LambertResult {
-                v1x: sol.v1.x, v1y: sol.v1.y, v1z: sol.v1.z,
-                v2x: sol.v2.x, v2y: sol.v2.y, v2z: sol.v2.z,
+                v1x: sol.v1.x,
+                v1y: sol.v1.y,
+                v1z: sol.v1.z,
+                v2x: sol.v2.x,
+                v2y: sol.v2.y,
+                v2z: sol.v2.z,
                 a: sol.a,
                 e: sol.e,
                 transfer_angle: sol.transfer_angle,
@@ -356,23 +391,36 @@ pub fn engine_database() -> JsValue {
 /// Propagate a TLE with (simplified) SGP4 and return position/velocity.
 #[wasm_bindgen]
 pub fn propagate_sgp4(tle_line0: &str, tle_line1: &str, tle_line2: &str, minutes: f64) -> JsValue {
-    let tle_str = format!("{}\n{}\n{}", tle_line0.trim(), tle_line1.trim(), tle_line2.trim());
+    let tle_str = format!(
+        "{}\n{}\n{}",
+        tle_line0.trim(),
+        tle_line1.trim(),
+        tle_line2.trim()
+    );
     match crate::sgp4::TLE::from_str(&tle_str) {
         Ok(tle) => match crate::sgp4::SGP4::new(tle) {
             Ok(sgp4) => match sgp4.propagate_from_epoch(minutes) {
                 Ok(state) => {
                     #[derive(Serialize)]
                     struct Sgp4Result {
-                        x: f64, y: f64, z: f64,
-                        vx: f64, vy: f64, vz: f64,
+                        x: f64,
+                        y: f64,
+                        z: f64,
+                        vx: f64,
+                        vy: f64,
+                        vz: f64,
                         altitude: f64,
                     }
                     let r = &state.position;
                     let v = &state.velocity;
                     let alt = r.magnitude() - R_EARTH;
                     let res = Sgp4Result {
-                        x: r.x, y: r.y, z: r.z,
-                        vx: v.x, vy: v.y, vz: v.z,
+                        x: r.x,
+                        y: r.y,
+                        z: r.z,
+                        vx: v.x,
+                        vy: v.y,
+                        vz: v.z,
                         altitude: alt,
                     };
                     serde_wasm_bindgen::to_value(&res).unwrap_or(JsValue::NULL)

@@ -6,10 +6,10 @@
 //! - Pork chop plots for trajectory optimization
 //! - Launch window analysis
 
-use nalgebra::Vector3;
 use crate::constants::MU_SUN;
 use crate::lambert::solve_lambert;
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Duration, Utc};
+use nalgebra::Vector3;
 use std::f64::consts::PI;
 
 /// Result of a Hohmann transfer calculation
@@ -109,31 +109,31 @@ pub struct LaunchWindow {
 pub fn hohmann_transfer(r1: f64, r2: f64, mu: f64) -> HohmannTransfer {
     // Transfer orbit semi-major axis
     let a_transfer = (r1 + r2) / 2.0;
-    
+
     // Transfer orbit eccentricity
     let e_transfer = (r2 - r1) / (r1 + r2);
-    
+
     // Orbital velocities
     let v1 = (mu / r1).sqrt();
     let v2 = (mu / r2).sqrt();
-    
+
     // Transfer orbit velocities
     let v_transfer_p = (mu * (2.0 / r1 - 1.0 / a_transfer)).sqrt(); // At perigee
     let v_transfer_a = (mu * (2.0 / r2 - 1.0 / a_transfer)).sqrt(); // At apogee
-    
+
     // Delta-Vs
     let delta_v1 = v_transfer_p - v1;
     let delta_v2 = v2 - v_transfer_a;
     let total_delta_v = delta_v1.abs() + delta_v2.abs();
-    
+
     // Transfer time (half period)
     let transfer_time = PI * (a_transfer.powi(3) / mu).sqrt();
-    
+
     // Phase angle calculation
     let n1 = (mu / r1.powi(3)).sqrt(); // Mean motion of inner orbit
     let n2 = (mu / r2.powi(3)).sqrt(); // Mean motion of outer orbit
     let phase_angle = PI - (n2 - n1) * transfer_time;
-    
+
     HohmannTransfer {
         transfer_sma: a_transfer,
         transfer_ecc: e_transfer,
@@ -152,25 +152,25 @@ pub fn bi_elliptic_transfer(r1: f64, r2: f64, r_aphelion: f64, mu: f64) -> BiEll
     let v1_initial = (mu / r1).sqrt();
     let v1_transfer = (mu * (2.0 / r1 - 1.0 / a1)).sqrt();
     let delta_v1 = v1_transfer - v1_initial;
-    
+
     // Second transfer orbit (r_aphelion to r2)
     let a2 = (r_aphelion + r2) / 2.0;
     let v2_transfer_out = (mu * (2.0 / r_aphelion - 1.0 / a1)).sqrt();
     let v2_transfer_in = (mu * (2.0 / r_aphelion - 1.0 / a2)).sqrt();
     let delta_v2 = v2_transfer_in - v2_transfer_out;
-    
+
     // Final orbit insertion
     let v2_final = (mu / r2).sqrt();
     let v2_arrival = (mu * (2.0 / r2 - 1.0 / a2)).sqrt();
     let delta_v3 = v2_final - v2_arrival;
-    
+
     let total_delta_v = delta_v1.abs() + delta_v2.abs() + delta_v3.abs();
-    
+
     // Transfer times
     let time1 = PI * (a1.powi(3) / mu).sqrt();
     let time2 = PI * (a2.powi(3) / mu).sqrt();
     let total_time = time1 + time2;
-    
+
     BiEllipticTransfer {
         transfer1_sma: a1,
         transfer2_sma: a2,
@@ -191,17 +191,17 @@ pub fn gravity_assist(
     planet_radius: f64,
 ) -> GravityAssist {
     let periapsis = planet_radius + flyby_altitude;
-    
+
     // Calculate turn angle using vis-viva and angular momentum conservation
     let e_hyperbola = 1.0 + (periapsis * v_inf_in.powi(2)) / planet_mu;
     let turn_angle = 2.0 * (1.0 / e_hyperbola).asin();
-    
+
     // For elastic encounter, |v_inf_out| = |v_inf_in|
     let v_inf_out = v_inf_in;
-    
+
     // Delta-V equivalent (what it would cost with propulsion)
     let delta_v_equivalent = 2.0 * v_inf_in * (turn_angle / 2.0).sin();
-    
+
     GravityAssist {
         v_inf_in,
         v_inf_out,
@@ -225,18 +225,18 @@ pub fn generate_pork_chop_data(
     let mut points = Vec::new();
     let start_mjd = date_to_mjd(start_date);
     let end_mjd = date_to_mjd(end_date);
-    
+
     let mut departure_mjd = start_mjd;
     while departure_mjd <= end_mjd {
         let mut flight_time = flight_time_min_days;
-        
+
         while flight_time <= flight_time_max_days {
             let arrival_mjd = departure_mjd + flight_time;
-            
+
             // Get planet positions
             let r1 = departure_planet_pos(departure_mjd);
             let r2 = arrival_planet_pos(arrival_mjd);
-            
+
             // Solve Lambert problem
             let tof = flight_time * 86400.0; // Convert days to seconds
             if let Ok(solution) = solve_lambert(r1, r2, tof, MU_SUN, true) {
@@ -245,10 +245,10 @@ pub fn generate_pork_chop_data(
                 let v2: Vector3<f64> = solution.v2;
                 let c3_departure = v1.magnitude_squared() - 2.0 * MU_SUN / r1.magnitude();
                 let c3_arrival = v2.magnitude_squared() - 2.0 * MU_SUN / r2.magnitude();
-                
+
                 // Calculate declination (simplified)
                 let declination = (v1.z / v1.magnitude()).asin();
-                
+
                 points.push(PorkChopPoint {
                     launch_date: mjd_to_date(departure_mjd),
                     arrival_date: mjd_to_date(arrival_mjd),
@@ -259,13 +259,13 @@ pub fn generate_pork_chop_data(
                     declination,
                 });
             }
-            
+
             flight_time += step_days;
         }
-        
+
         departure_mjd += step_days;
     }
-    
+
     points
 }
 
@@ -279,10 +279,10 @@ pub fn find_launch_windows(
     let mut in_window = false;
     let mut window_start = None;
     let mut window_points = Vec::new();
-    
+
     for point in pork_chop_data {
         let delta_v = (point.c3_departure + point.c3_arrival).sqrt();
-        
+
         if delta_v <= max_delta_v {
             if !in_window {
                 // Start new window
@@ -294,10 +294,10 @@ pub fn find_launch_windows(
         } else if in_window {
             // End current window
             in_window = false;
-            
+
             if let Some(start) = window_start {
                 let duration = (point.launch_date - start).num_days() as f64;
-                
+
                 if duration >= min_window_days && !window_points.is_empty() {
                     // Find optimal point in window
                     let optimal_point = window_points
@@ -308,12 +308,13 @@ pub fn find_launch_windows(
                                 .unwrap()
                         })
                         .unwrap();
-                    
-                    let min_delta_v = (optimal_point.c3_departure + optimal_point.c3_arrival).sqrt();
-                    
+
+                    let min_delta_v =
+                        (optimal_point.c3_departure + optimal_point.c3_arrival).sqrt();
+
                     // Calculate azimuth range (simplified)
                     let azimuth_range = (0.0, 360.0); // Placeholder - real calculation would be more complex
-                    
+
                     windows.push(LaunchWindow {
                         window_start: start,
                         window_end: window_points.last().unwrap().launch_date,
@@ -326,7 +327,7 @@ pub fn find_launch_windows(
             }
         }
     }
-    
+
     windows
 }
 
@@ -371,16 +372,16 @@ mod tests {
         // Earth to Mars transfer (approximate)
         let r_earth = 1.0 * AU_KM; // km
         let r_mars = 1.52 * AU_KM;
-        
+
         let transfer = hohmann_transfer(r_earth, r_mars, MU_SUN);
-        
+
         // Check transfer semi-major axis
         assert_relative_eq!(transfer.transfer_sma, 1.26 * AU_KM, epsilon = 1e6);
-        
+
         // Transfer time should be about 259 days
         let transfer_days = transfer.transfer_time / 86400.0;
         assert_relative_eq!(transfer_days, 259.0, epsilon = 10.0);
-        
+
         // Total delta-V should be reasonable (3-6 km/s)
         assert!(transfer.total_delta_v > 3.0);
         assert!(transfer.total_delta_v < 6.0);
@@ -391,14 +392,14 @@ mod tests {
         let r1 = 6678.0e3; // LEO
         let r2 = 42164.0e3; // GEO
         let r_aphelion = 80000.0e3; // High aphelion
-        
+
         let transfer = bi_elliptic_transfer(r1, r2, r_aphelion, MU_EARTH);
-        
+
         // Bi-elliptic should have 3 delta-V components
         assert!(transfer.delta_v1 > 0.0);
         assert!(transfer.delta_v2 != 0.0);
         assert!(transfer.delta_v3 < 0.0);
-        
+
         // Total transfer time should be longer than Hohmann
         let hohmann = hohmann_transfer(r1, r2, MU_EARTH);
         assert!(transfer.total_time > hohmann.transfer_time);
@@ -410,16 +411,16 @@ mod tests {
         let v_inf = 5000.0; // 5 km/s hyperbolic excess velocity
         let flyby_alt = 200.0e3; // 200 km altitude
         let earth_radius = 6371.0e3;
-        
+
         let assist = gravity_assist(v_inf, MU_EARTH, flyby_alt, earth_radius);
-        
+
         // Turn angle should be reasonable
         assert!(assist.turn_angle > 0.0);
         assert!(assist.turn_angle < PI);
-        
+
         // Delta-V equivalent should be positive
         assert!(assist.delta_v_equivalent > 0.0);
-        
+
         // V-infinity should be conserved in magnitude
         assert_relative_eq!(assist.v_inf_out, v_inf, epsilon = 1e-6);
     }
@@ -429,9 +430,9 @@ mod tests {
         // Earth-Mars synodic period
         let earth_period = 365.25; // days
         let mars_period = 686.98; // days
-        
+
         let synodic = synodic_period(earth_period, mars_period);
-        
+
         // Should be about 779 days (26 months)
         assert_relative_eq!(synodic, 779.0, epsilon = 10.0);
     }
@@ -441,10 +442,10 @@ mod tests {
         let test_date = DateTime::parse_from_rfc3339("2020-01-01T00:00:00Z")
             .unwrap()
             .with_timezone(&Utc);
-        
+
         let mjd = date_to_mjd(test_date);
         let converted_back = mjd_to_date(mjd);
-        
+
         // Should round-trip approximately
         let diff_seconds = (test_date - converted_back).num_seconds().abs();
         assert!(diff_seconds < 86400); // Within a day

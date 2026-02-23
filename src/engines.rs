@@ -1,5 +1,5 @@
 //! Comprehensive rocket engine database with real specifications
-//! 
+//!
 //! Contains actual performance data for engines used by:
 //! - SpaceX (Merlin, Raptor, SuperDraco)
 //! - NASA (RS-25, RL-10, J-2)
@@ -10,8 +10,8 @@
 //!
 //! Data sourced from official specifications, NASA databases, and verified technical literature.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Complete rocket engine specification
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -162,12 +162,12 @@ impl EngineDatabase {
             by_propellant: HashMap::new(),
             by_thrust_class: HashMap::new(),
         };
-        
+
         database.load_all_engines();
         database.build_indices();
         database
     }
-    
+
     /// Load all engine specifications
     fn load_all_engines(&mut self) {
         // SpaceX Engines
@@ -179,39 +179,39 @@ impl EngineDatabase {
         self.add_engine(raptor_3());
         self.add_engine(super_draco());
         self.add_engine(draco());
-        
+
         // NASA Engines
         self.add_engine(rs25());
         self.add_engine(rl10b2());
         self.add_engine(j2_engine());
         self.add_engine(rs68());
-        
+
         // Russian Engines
         self.add_engine(rd180());
         self.add_engine(rd191());
         self.add_engine(nk33());
         self.add_engine(rd170());
         self.add_engine(rd253());
-        
+
         // European (ESA) Engines
         self.add_engine(vulcain_2());
         self.add_engine(vinci());
         self.add_engine(aestus());
-        
+
         // Blue Origin
         self.add_engine(be3());
         self.add_engine(be4());
-        
+
         // Other Notable Engines
         self.add_engine(f1_engine());
         self.add_engine(h1_engine());
         self.add_engine(ssme_rs25());
     }
-    
+
     fn add_engine(&mut self, engine: RocketEngine) {
         self.engines.insert(engine.name.clone(), engine);
     }
-    
+
     /// Build search indices
     fn build_indices(&mut self) {
         for (name, engine) in &self.engines {
@@ -220,13 +220,13 @@ impl EngineDatabase {
                 .entry(engine.manufacturer.clone())
                 .or_default()
                 .push(name.clone());
-            
+
             // By propellant
             self.by_propellant
                 .entry(engine.propellant.clone())
                 .or_default()
                 .push(name.clone());
-            
+
             // By thrust class
             let thrust_class = classify_thrust(engine.thrust_vac);
             self.by_thrust_class
@@ -235,12 +235,12 @@ impl EngineDatabase {
                 .push(name.clone());
         }
     }
-    
+
     /// Get engine by name
     pub fn get_engine(&self, name: &str) -> Option<&RocketEngine> {
         self.engines.get(name)
     }
-    
+
     /// Get all engines by manufacturer
     pub fn get_by_manufacturer(&self, manufacturer: &str) -> Vec<&RocketEngine> {
         self.by_manufacturer
@@ -250,7 +250,7 @@ impl EngineDatabase {
             .filter_map(|name| self.engines.get(name))
             .collect()
     }
-    
+
     /// Get all engines by propellant type
     pub fn get_by_propellant(&self, propellant: PropellantType) -> Vec<&RocketEngine> {
         self.by_propellant
@@ -260,27 +260,25 @@ impl EngineDatabase {
             .filter_map(|name| self.engines.get(name))
             .collect()
     }
-    
+
     /// Get engines in thrust range (kN)
     pub fn get_by_thrust_range(&self, min_thrust: f64, max_thrust: f64) -> Vec<&RocketEngine> {
         self.engines
             .values()
-            .filter(|engine| {
-                engine.thrust_vac >= min_thrust && engine.thrust_vac <= max_thrust
-            })
+            .filter(|engine| engine.thrust_vac >= min_thrust && engine.thrust_vac <= max_thrust)
             .collect()
     }
-    
+
     /// Get all engine names
     pub fn list_engines(&self) -> Vec<&String> {
         self.engines.keys().collect()
     }
-    
+
     /// Engine comparison metrics
     pub fn compare_engines(&self, engine1: &str, engine2: &str) -> Option<EngineComparison> {
         let e1 = self.engines.get(engine1)?;
         let e2 = self.engines.get(engine2)?;
-        
+
         Some(EngineComparison {
             engine1: e1.clone(),
             engine2: e2.clone(),
@@ -352,10 +350,7 @@ fn merlin_1d_sea_level() -> RocketEngine {
             "Merlin 1D+".to_string(),
             "Merlin 1D Block 5".to_string(),
         ],
-        applications: vec![
-            "Falcon 9".to_string(),
-            "Falcon Heavy".to_string(),
-        ],
+        applications: vec!["Falcon 9".to_string(), "Falcon Heavy".to_string()],
     }
 }
 
@@ -424,10 +419,7 @@ fn merlin_1d_plus() -> RocketEngine {
             "Block 5 configuration".to_string(),
         ],
         variants: vec!["M1D+ v1.1".to_string()],
-        applications: vec![
-            "Falcon 9 Block 5".to_string(),
-            "Falcon Heavy".to_string(),
-        ],
+        applications: vec!["Falcon 9 Block 5".to_string(), "Falcon Heavy".to_string()],
     }
 }
 
@@ -494,10 +486,7 @@ fn raptor_2() -> RocketEngine {
             "Improved manufacturing".to_string(),
             "Higher chamber pressure".to_string(),
         ],
-        variants: vec![
-            "Raptor 2".to_string(),
-            "Raptor 2 Vacuum".to_string(),
-        ],
+        variants: vec!["Raptor 2".to_string(), "Raptor 2 Vacuum".to_string()],
         applications: vec!["Starship".to_string(), "Super Heavy".to_string()],
     }
 }
@@ -531,10 +520,7 @@ fn raptor_3() -> RocketEngine {
             "Reduced mass".to_string(),
             "Enhanced performance".to_string(),
         ],
-        variants: vec![
-            "Raptor 3".to_string(),
-            "Raptor 3 Vacuum".to_string(),
-        ],
+        variants: vec!["Raptor 3".to_string(), "Raptor 3 Vacuum".to_string()],
         applications: vec!["Starship V2".to_string(), "Super Heavy V2".to_string()],
     }
 }
@@ -646,10 +632,7 @@ fn rs25() -> RocketEngine {
             "SSME Block II".to_string(),
             "RS-25D".to_string(),
         ],
-        applications: vec![
-            "Space Shuttle".to_string(),
-            "SLS".to_string(),
-        ],
+        applications: vec!["Space Shuttle".to_string(), "SLS".to_string()],
     }
 }
 
@@ -1203,65 +1186,80 @@ fn ssme_rs25() -> RocketEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_engine_database_creation() {
         let db = EngineDatabase::new();
         assert!(db.engines.len() > 20, "Should have many engines loaded");
     }
-    
+
     #[test]
     fn test_get_spacex_engines() {
         let db = EngineDatabase::new();
         let spacex_engines = db.get_by_manufacturer("SpaceX");
-        
-        assert!(spacex_engines.len() >= 6, "Should have multiple SpaceX engines");
-        
-        let merlin = spacex_engines.iter()
+
+        assert!(
+            spacex_engines.len() >= 6,
+            "Should have multiple SpaceX engines"
+        );
+
+        let merlin = spacex_engines
+            .iter()
             .find(|e| e.name.contains("Merlin"))
             .expect("Should have Merlin engine");
-        
+
         assert_eq!(merlin.propellant, PropellantType::LoxRp1);
         assert_eq!(merlin.cycle, EngineType::GasGenerator);
     }
-    
+
     #[test]
     fn test_raptor_engine_specs() {
         let db = EngineDatabase::new();
         let raptor2 = db.get_engine("Raptor 2").expect("Should have Raptor 2");
-        
+
         assert_eq!(raptor2.propellant, PropellantType::LoxCh4);
         assert_eq!(raptor2.cycle, EngineType::FullFlow);
-        assert!(raptor2.chamber_pressure > 300.0, "Raptor should have very high chamber pressure");
-        assert!(raptor2.thrust_vac > 2000.0, "Raptor 2 should have >2000 kN thrust");
+        assert!(
+            raptor2.chamber_pressure > 300.0,
+            "Raptor should have very high chamber pressure"
+        );
+        assert!(
+            raptor2.thrust_vac > 2000.0,
+            "Raptor 2 should have >2000 kN thrust"
+        );
     }
-    
+
     #[test]
     fn test_engine_comparison() {
         let db = EngineDatabase::new();
-        let comparison = db.compare_engines("Raptor 2", "Merlin 1D")
+        let comparison = db
+            .compare_engines("Raptor 2", "Merlin 1D")
             .expect("Should be able to compare engines");
-        
-        assert!(comparison.thrust_ratio > 2.0, "Raptor should have much more thrust");
+
+        assert!(
+            comparison.thrust_ratio > 2.0,
+            "Raptor should have much more thrust"
+        );
         assert!(comparison.isp_ratio > 1.1, "Raptor should have better ISP");
     }
-    
+
     #[test]
     fn test_propellant_filtering() {
         let db = EngineDatabase::new();
         let methalox_engines = db.get_by_propellant(PropellantType::LoxCh4);
-        
-        assert!(methalox_engines.len() >= 3, "Should have multiple methalox engines");
-        
-        let has_raptor = methalox_engines.iter()
-            .any(|e| e.name.contains("Raptor"));
+
+        assert!(
+            methalox_engines.len() >= 3,
+            "Should have multiple methalox engines"
+        );
+
+        let has_raptor = methalox_engines.iter().any(|e| e.name.contains("Raptor"));
         assert!(has_raptor, "Should include Raptor engines");
-        
-        let has_be4 = methalox_engines.iter()
-            .any(|e| e.name.contains("BE-4"));
+
+        let has_be4 = methalox_engines.iter().any(|e| e.name.contains("BE-4"));
         assert!(has_be4, "Should include BE-4 engine");
     }
-    
+
     #[test]
     fn test_thrust_classification() {
         assert_eq!(classify_thrust(5.0), ThrustClass::Micro);
@@ -1270,37 +1268,45 @@ mod tests {
         assert_eq!(classify_thrust(5000.0), ThrustClass::Large);
         assert_eq!(classify_thrust(15000.0), ThrustClass::SuperHeavy);
     }
-    
+
     #[test]
     fn test_thrust_range_query() {
         let db = EngineDatabase::new();
         let high_thrust = db.get_by_thrust_range(2000.0, 5000.0);
-        
+
         assert!(high_thrust.len() > 0, "Should find high-thrust engines");
-        
-        let has_raptor = high_thrust.iter()
-            .any(|e| e.name.contains("Raptor"));
-        assert!(has_raptor, "Should include Raptor engines in high thrust range");
+
+        let has_raptor = high_thrust.iter().any(|e| e.name.contains("Raptor"));
+        assert!(
+            has_raptor,
+            "Should include Raptor engines in high thrust range"
+        );
     }
-    
+
     #[test]
     fn test_rs25_specifications() {
         let db = EngineDatabase::new();
         let rs25 = db.get_engine("RS-25").expect("Should have RS-25");
-        
+
         assert_eq!(rs25.propellant, PropellantType::LoxLh2);
         assert_eq!(rs25.cycle, EngineType::StagedCombustionFuelRich);
         assert!(rs25.isp_vac > 450.0, "RS-25 should have very high ISP");
-        assert!(rs25.chamber_pressure > 200.0, "RS-25 should have high chamber pressure");
+        assert!(
+            rs25.chamber_pressure > 200.0,
+            "RS-25 should have high chamber pressure"
+        );
     }
-    
+
     #[test]
     fn test_f1_engine_legacy() {
         let db = EngineDatabase::new();
         let f1 = db.get_engine("F-1").expect("Should have F-1 engine");
-        
+
         assert_eq!(f1.status, EngineStatus::Retired);
-        assert!(f1.thrust_sl.unwrap() > 6000.0, "F-1 should have massive thrust");
+        assert!(
+            f1.thrust_sl.unwrap() > 6000.0,
+            "F-1 should have massive thrust"
+        );
         assert!(f1.applications.contains(&"Saturn V S-IC".to_string()));
     }
 }

@@ -260,12 +260,12 @@ mod tests {
         // Test complete conversion chain: M → E → ν → E → M
         let ecc = 0.6;
         let m_orig = 2.5;
-        
+
         let ea = solve_kepler(m_orig, ecc).unwrap();
         let nu = eccentric_to_true_anomaly(ea, ecc);
         let ea2 = true_to_eccentric_anomaly(nu, ecc);
         let m_final = eccentric_to_mean_anomaly(ea2, ecc);
-        
+
         assert!((m_orig - m_final).abs() < 1e-10);
     }
 }

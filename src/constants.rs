@@ -73,7 +73,7 @@ mod tests {
     fn test_earth_radius() {
         // Earth mean radius should be ~6,371 km
         assert!((R_EARTH - 6_371.0).abs() < 1e-3);
-        
+
         // Equatorial radius should be ~6,378 km
         assert!((R_EARTH_EQUATORIAL - 6_378.137).abs() < 1e-3);
     }
@@ -100,7 +100,7 @@ mod tests {
     fn test_angular_constants() {
         // TWO_PI should be ~6.28
         assert!((TWO_PI - 2.0 * std::f64::consts::PI).abs() < 1e-12);
-        
+
         // Earth rotation rate should be ~7.29e-5 rad/s
         assert!((OMEGA_EARTH - 7.2921159e-5).abs() < 1e-11);
     }

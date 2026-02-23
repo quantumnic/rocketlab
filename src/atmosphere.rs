@@ -75,7 +75,9 @@ impl AtmosphereModel {
             AtmosphereModel::Mars => {
                 // Placeholder: use simplified Mars atmosphere
                 // Real implementation would need proper Mars model
-                if altitude_m > 80_000.0 { return None; }
+                if altitude_m > 80_000.0 {
+                    return None;
+                }
                 Some(AtmosphereResult {
                     altitude: altitude_m,
                     temperature: 210.0 - altitude_m * 0.001, // Rough approximation
