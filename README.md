@@ -79,6 +79,31 @@ rocketlab/
 └── docs/                 # Technical documentation
 ```
 
+## 🌐 Live Demo
+
+**[▶ Launch Interactive Simulator](https://quantumnic.github.io/rocketlab/)** — runs in your browser, no install needed.
+
+The web app includes 6 interactive panels: trajectory simulator, orbit visualizer, engine database, re-entry physics, powered descent guidance, and mission replays. Works with pure JavaScript; enable WASM for full Rust precision.
+
+## 🦀 WebAssembly (WASM) Support
+
+Build the Rust engine for the browser:
+
+```bash
+# Install wasm-pack (one time)
+cargo install wasm-pack
+
+# Build WASM module
+wasm-pack build --target web --features wasm --out-dir web/pkg
+
+# Or use the helper script
+./web/build-wasm.sh
+```
+
+The web app auto-detects WASM availability:
+- **🦀 Rust WASM Engine** — full precision from the real Rust simulation code
+- **⚡ JS Engine** — standalone JavaScript approximations (no build step needed)
+
 ## 🚀 Quick Start
 
 ### Install CLI
