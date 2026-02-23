@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/rocketlab)](https://crates.io/crates/rocketlab)
 [![Documentation](https://docs.rs/rocketlab/badge.svg)](https://docs.rs/rocketlab)
-[![Build Status](https://github.com/yourusername/rocketlab/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/rocketlab/actions)
+[![Build Status](https://github.com/quantumnic/rocketlab/actions/workflows/ci.yml/badge.svg)](https://github.com/quantumnic/rocketlab/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 
@@ -106,10 +106,30 @@ The web app auto-detects WASM availability:
 
 ## 🚀 Quick Start
 
-### Install CLI
+### One-Liner Install & Test
+
+**macOS / Linux:**
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && source "$HOME/.cargo/env" && cargo install --git https://github.com/quantumnic/rocketlab.git && rocketlab --help
+```
+
+**Windows (PowerShell):**
+```powershell
+winget install Rustlang.Rustup; rustup default stable; cargo install --git https://github.com/quantumnic/rocketlab.git; rocketlab --help
+```
+
+**Already have Rust?**
+```bash
+cargo install --git https://github.com/quantumnic/rocketlab.git
+```
+
+### Run Examples Locally
 
 ```bash
-cargo install --git https://github.com/redbasecap-buiss/rocketlab.git
+git clone https://github.com/quantumnic/rocketlab.git && cd rocketlab
+cargo run --example apollo11
+cargo run --example falcon9_landing
+cargo test  # 119 tests
 ```
 
 ### Use as Library
@@ -118,7 +138,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rocketlab = { git = "https://github.com/redbasecap-buiss/rocketlab.git" }
+rocketlab = { git = "https://github.com/quantumnic/rocketlab.git" }
 nalgebra = "0.33"
 chrono = "0.4"
 ```
@@ -304,6 +324,6 @@ RocketLab stands on the shoulders of giants:
 
 Made with 🦀 Rust and ❤️ for the space community
 
-[Documentation](https://docs.rs/rocketlab) • [Crates.io](https://crates.io/crates/rocketlab) • [GitHub](https://github.com/yourusername/rocketlab)
+[Documentation](https://docs.rs/rocketlab) • [Crates.io](https://crates.io/crates/rocketlab) • [GitHub](https://github.com/quantumnic/rocketlab)
 
 </div>
