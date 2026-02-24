@@ -50,6 +50,45 @@ pub const T0_ATM: f64 = 288.15;
 /// Mean molecular weight of air (kg/mol)
 pub const M_AIR: f64 = 0.0289644;
 
+/// Gravitational parameter of Jupiter (km³/s²)
+pub const MU_JUPITER: f64 = 1.266_865_349e8;
+
+/// Gravitational parameter of Venus (km³/s²)
+pub const MU_VENUS: f64 = 324_859.0;
+
+/// Gravitational parameter of Saturn (km³/s²)
+pub const MU_SATURN: f64 = 3.793_120_8e7;
+
+/// Mean radius of the Moon (km)
+pub const R_MOON: f64 = 1_737.4;
+
+/// Mean radius of Mars (equatorial, km)
+pub const R_MARS_EQUATORIAL: f64 = 3_396.2;
+
+/// Mean radius of Jupiter (km)
+pub const R_JUPITER: f64 = 69_911.0;
+
+/// Mean radius of Venus (km)
+pub const R_VENUS: f64 = 6_051.8;
+
+/// Mean radius of Saturn (km)
+pub const R_SATURN: f64 = 58_232.0;
+
+/// Mean orbital radius of Earth around the Sun (km)
+pub const A_EARTH: f64 = 1.495_978_707e8;
+
+/// Mean orbital radius of Mars around the Sun (km)
+pub const A_MARS: f64 = 2.279_392_e8;
+
+/// Mean orbital radius of Venus around the Sun (km)
+pub const A_VENUS: f64 = 1.082_09e8;
+
+/// Mean orbital radius of Jupiter around the Sun (km)
+pub const A_JUPITER: f64 = 7.785_472e8;
+
+/// Stefan-Boltzmann constant (W/(m²·K⁴))
+pub const SIGMA_SB: f64 = 5.670_374_419e-8;
+
 /// Astronomical unit (km)
 pub const AU_KM: f64 = 1.495_978_707e8;
 

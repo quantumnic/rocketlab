@@ -21,6 +21,9 @@ pub mod constants;
 pub mod constellation;
 pub mod delta_v_budget;
 pub mod engines;
+pub mod flyby;
+pub mod heating;
+pub mod interplanetary;
 pub mod kepler;
 pub mod lambert;
 pub mod landing;
@@ -37,6 +40,7 @@ pub mod propulsion;
 pub mod reentry;
 pub mod rendezvous;
 pub mod sgp4;
+pub mod soi;
 pub mod trajectory;
 
 #[cfg(feature = "wasm")]
