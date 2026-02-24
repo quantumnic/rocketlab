@@ -719,7 +719,7 @@ fn epoch_to_datetime(year: u32, day: f64) -> Result<DateTime<Utc>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{DateTime, Datelike, Utc};
+    use chrono::Datelike;
 
     #[test]
     fn test_tle_parsing() {

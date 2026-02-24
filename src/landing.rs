@@ -729,7 +729,7 @@ mod tests {
         let problem = falcon9_landing_config(r0, v0, rf);
 
         // Create mock solution with constraint violations
-        let mut solution = PDGSolution {
+        let solution = PDGSolution {
             flight_time: 30.0,
             time: vec![0.0, 15.0, 30.0],
             position: vec![r0, Vector3::new(0.0, 0.0, 500.0), rf],

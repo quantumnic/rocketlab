@@ -1,6 +1,6 @@
 [package]
 name = "rocketlab"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2021"
 description = "Complete aerospace engineering toolkit — orbital mechanics, mission design, spacecraft dynamics, SGP4, Lambert solver, powered descent guidance"
 license = "MIT"
