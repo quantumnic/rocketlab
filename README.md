@@ -1,7 +1,5 @@
 # 🚀 RocketLab
 
-[![Crates.io](https://img.shields.io/crates/v/rocketlab)](https://crates.io/crates/rocketlab)
-[![Documentation](https://docs.rs/rocketlab/badge.svg)](https://docs.rs/rocketlab)
 [![Build Status](https://github.com/quantumnic/rocketlab/actions/workflows/ci.yml/badge.svg)](https://github.com/quantumnic/rocketlab/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
@@ -23,7 +21,7 @@
 - **Synodic Periods** — Planetary alignment timing
 
 ### 🌍 **Perturbation Models**
-- **SGP4/SDP4 Propagator** — TLE-based satellite tracking
+- **SGP4/SDP4-style Propagator** — TLE-based satellite tracking (simplified Keplerian + J2 secular model)
 - **J2-J6 Gravity Models** — WGS-84 Earth gravitational harmonics
 - **Atmospheric Drag** — US Standard Atmosphere 1976
 - **Third-Body Effects** — Sun/Moon gravitational perturbations
@@ -31,7 +29,7 @@
 
 ### 🔥 **Propulsion Systems**
 - **Rocket Equation** — Tsiolkovsky, staging analysis
-- **Engine Database** — 80+ real engines (Merlin 1D, RS-25, Raptor, etc.)
+- **Engine Database** — 25 real engines (Merlin 1D, RS-25, Raptor, etc.)
 - **Propellant Properties** — LOX/RP-1, LOX/LH2, hypergolic combinations
 - **Performance Calculations** — Thrust curves, specific impulse variations
 
@@ -129,7 +127,7 @@ cargo install --git https://github.com/quantumnic/rocketlab.git
 git clone https://github.com/quantumnic/rocketlab.git && cd rocketlab
 cargo run --example apollo11
 cargo run --example falcon9_landing
-cargo test  # 119 tests
+cargo test  # 250+ tests
 ```
 
 ### Use as Library
@@ -155,7 +153,7 @@ let r2 = 42_164.0; // km (GEO altitude ~35,786 km)
 let transfer = hohmann_transfer(r1, r2, MU_EARTH);
 
 println!("Transfer time: {:.2} hours", transfer.transfer_time / 3600.0);
-println!("Total ΔV: {:.3} km/s", transfer.total_delta_v / 1000.0);
+println!("Total ΔV: {:.3} km/s", transfer.total_delta_v); // km/s, since r and MU_EARTH are in km
 ```
 
 ### SGP4 Satellite Tracking
@@ -171,8 +169,8 @@ ISS (ZARYA)
 let tle = TLE::from_str(tle_data)?;
 let sgp4 = SGP4::new(tle)?;
 
-// Propagate 90 minutes into the future
-let state = sgp4.propagate_from_epoch(90.0 * 60.0)?;
+// Propagate 90 minutes into the future (tsince is in minutes)
+let state = sgp4.propagate_from_epoch(90.0)?;
 println!("Position: {:.3} km", state.position);
 ```
 
@@ -211,7 +209,7 @@ Models SpaceX Falcon 9 first stage recovery:
 | **SGP4** | TLE propagation, near/deep space | ✅ AFSPC test vectors | ~5 μs per propagation |
 | **Orbits** | Elements ↔ vectors, classical mechanics | ✅ Curtis examples | ~100 ns per conversion |
 | **Atmosphere** | US Standard 1976, 0-86 km | ✅ NASA TM-X-74335 | ~50 ns per query |
-| **Engines** | 80+ real engines, performance curves | ✅ Manufacturer data | ~10 ns per lookup |
+| **Engines** | 25 real engines, performance curves | ✅ Manufacturer data | ~10 ns per lookup |
 | **Landing** | Convex optimization, guidance laws | ✅ Apollo/SpaceX profiles | ~1 ms per solution |
 | **Mission** | Transfer analysis, pork chop plots | ✅ NASA trajectory data | ~100 μs per transfer |
 
@@ -239,14 +237,13 @@ RocketLab is validated against authoritative aerospace sources:
 
 ## 🧪 Testing
 
-RocketLab includes **106 comprehensive tests** covering:
+RocketLab includes **250+ tests** covering:
 
 ```bash
 cargo test                    # Run all tests
 cargo test kepler            # Test Kepler solvers
 cargo test sgp4              # Test satellite tracking
 cargo test lambert          # Test interplanetary transfers
-cargo test --test integration # Integration test suite
 ```
 
 **Test Coverage:**
@@ -286,14 +283,11 @@ RocketLab has minimal, well-maintained dependencies:
 
 ## 📚 Documentation
 
-- **[API Documentation](https://docs.rs/rocketlab)** — Complete API reference
-- **[User Guide](docs/user_guide.md)** — Tutorial and examples
-- **[Algorithm Notes](docs/algorithms.md)** — Mathematical background
-- **[Validation Report](docs/validation.md)** — Test cases and accuracy
+- **API Documentation** — run `cargo doc --open` in the clone (the crate is not published on crates.io/docs.rs yet)
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! Open an issue or pull request on [GitHub](https://github.com/quantumnic/rocketlab).
 
 ### Areas for Contribution:
 - **Additional atmospheric models** (Mars, Venus, Titan)
@@ -324,6 +318,6 @@ RocketLab stands on the shoulders of giants:
 
 Made with 🦀 Rust and ❤️ for the space community
 
-[Documentation](https://docs.rs/rocketlab) • [Crates.io](https://crates.io/crates/rocketlab) • [GitHub](https://github.com/quantumnic/rocketlab)
+[Live Demo](https://quantumnic.github.io/rocketlab/) • [GitHub](https://github.com/quantumnic/rocketlab)
 
 </div>
